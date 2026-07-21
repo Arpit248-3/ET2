@@ -281,6 +281,8 @@ export default function SPRPlanner() {
     }
   }, [sprError, addToast]);
 
+  const activePlan = sprCache || sprPlan;
+
   const handleResetStock = () => {
     localStorage.removeItem('urja_spr_cache');
     setSprCache(null);
