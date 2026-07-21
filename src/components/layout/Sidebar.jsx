@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 import Logo from '../ui/Logo.jsx';
 import { useScenario } from '../../context/ScenarioContext.jsx';
+import useApi from '../../hooks/useApi.js';
+import { fetchNotifications } from '../../services/api.js';
 
 const navSections = [
   {
@@ -68,9 +70,11 @@ export default function Sidebar({ crisisMode = false }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { pipelineState } = useScenario();
-  const unreadNotifCount = pipelineState?.notifications_unread_count ?? (
+  const { data: notifData } = useApi(fetchNotifications, { fallback: null });
+  const liveUnread = notifData?.unread_count ?? (notifData?.notifications ? notifData.notifications.filter(n => !n.read).length : null);
+  const unreadNotifCount = liveUnread ?? (pipelineState?.notifications_unread_count ?? (
     pipelineState?.notifications ? pipelineState.notifications.filter(n => !n.read).length : 0
-  );
+  ));
   const [collapsed, setCollapsed] = useState({});
   const [minimized, setMinimized] = useState(window.innerWidth <= 1024);
   const navRef = React.useRef(null);
@@ -264,7 +268,22 @@ export default function Sidebar({ crisisMode = false }) {
                       {(() => {
                         const badgeVal = item.path === '/notifications' ? (unreadNotifCount > 0 ? unreadNotifCount : null) : item.badge;
                         return badgeVal ? (
-                          <span style={{ background: '#ef4444', color: 'white', borderRadius: 10, padding: '1px 6px', fontSize: 9.5, fontWeight: 700, lineHeight: 1.6 }}>
+                          <span style={{
+                            background: '#ef4444',
+                            color: '#ffffff',
+                            borderRadius: 12,
+                            padding: '2px 7px',
+                            fontSize: 10,
+                            fontWeight: 800,
+                            lineHeight: 1.2,
+                            boxShadow: '0 0 10px rgba(239, 68, 68, 0.75)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            minWidth: 18,
+                            height: 18,
+                            marginLeft: 'auto'
+                          }}>
                             {badgeVal}
                           </span>
                         ) : null;
