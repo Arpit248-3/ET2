@@ -281,14 +281,18 @@ export default function SPRPlanner() {
     }
   }, [sprError, addToast]);
 
-  const activePlan = sprCache || sprPlan;
+  const handleResetStock = () => {
+    localStorage.removeItem('urja_spr_cache');
+    setSprCache(null);
+    addToast('Strategic Petroleum Reserve stock levels restored to baseline (23.6 MMT / 64% capacity)', 'success');
+  };
 
   const handleOptimizeDrawdown = async () => {
     setOptimizing(true);
     try {
       const res = await runPlan({
-        daily_gap_mbbl: activeScenario?.india_import_gap_mbbl_day ?? 2.4,
-        days_until_cargo: activeScenario?.id === 'hormuz' ? 22 : activeScenario ? 15 : 22,
+        daily_gap_mbbl: activeScenario?.india_import_gap_mbbl_day ?? 1.2,
+        days_until_cargo: 7,
         target_coverage_days: 30,
       });
       if (res) {
@@ -447,6 +451,7 @@ export default function SPRPlanner() {
 
       <PageHeader title="SPR Planner" subtitle="Strategic Petroleum Reserve management · Drawdown optimization · Crisis buffer planning"
         actions={<>
+          <button className="btn btn-ghost btn-sm" onClick={handleResetStock}>Reset Stock Levels</button>
           <button className="btn btn-secondary btn-sm" onClick={handleSendToBrief}><ArrowRight size={13} /> Send to Brief</button>
           <button className="btn btn-primary btn-sm" onClick={handleOptimizeDrawdown} disabled={optimizing || sprLoading}>
             {optimizing || sprLoading ? <Loader size={13} style={{ animation: 'spin 1s linear infinite' }} /> : null}
