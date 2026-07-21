@@ -1,0 +1,41 @@
+{
+  "risk": {
+    "critical_threshold": 83,
+    "elevated_threshold": 60,
+    "moderate_threshold": 40,
+    "normal_threshold": 0
+  },
+  "spr": {
+    "minimum_coverage_days": 15,
+    "target_coverage_days": 30,
+    "critical_level_pct": 30,
+    "emergency_drawdown_limit_pct": 40
+  },
+  "procurement": {
+    "max_single_supplier_pct": 40,
+    "max_route_risk_score": 50,
+    "max_landed_cost_usd_bbl": 95.0,
+    "min_reliability_score": 70,
+    "min_compatibility_score": 65
+  },
+  "economic": {
+    "inflation_alert_pct": 1.5,
+    "gdp_alert_pct": -0.3,
+    "fuel_price_alert_inr": 10,
+    "fiscal_alert_cr": 20000
+  },
+  "notifications": {
+    "critical_channels": [
+      "email",
+      "sms",
+      "dashboard"
+    ],
+    "warning_channels": [
+      "email",
+      "dashboard"
+    ],
+    "info_channels": [
+      "dashboard"
+    ]
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "id": "singapore_bunkering_contamination",
+  "name": "Singapore Bunkering Fuel Chemical Contamination",
+  "category": "LOGISTICS_CONTAMINATION",
+  "description": "High levels of chlorinated hydrocarbons in marine fuel oil supply at Singapore port cause engine failure in 40+ inbound merchant vessels.",
+  "brent_baseline_usd": 88.0,
+  "crude_price_spike_usd": 1.5,
+  "disrupted_route": "Pacific Route",
+  "disrupted_supplier": null,
+  "affected_regions": ["Singapore Bunkering Hub", "Indian Ocean Lanes"],
+  "parameters": {
+    "geopolitical_risk": 20,
+    "maritime_delay_days": 5,
+    "insurance_premium_multiplier": 1.4,
+    "port_capacity_fraction": 0.75,
+    "weather_severity_idx": 5,
+    "cyber_threat_idx": 10,
+    "market_volatility_idx": 30,
+    "opec_cut_mbbl": 0.0,
+    "inventory_days": 42,
+    "supply_shortfall_mbbl": 0.5
+  },
+  "kpi": {
+    "risk_score": 42,
+    "crisis_level": "MODERATE",
+    "active_incidents": 2,
+    "supply_gap": "0.5M bbl/day",
+    "spr_coverage": 61,
+    "active_sanctions": 0
+  },
+  "timeline": [
+    {"step": 0, "time": "00:00", "event": "MPA Singapore issues alert on off-spec ISO 8217 bunker fuel.", "type": "WARNING", "risk": 42}
+  ]
+}

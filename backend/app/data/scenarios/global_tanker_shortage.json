@@ -1,0 +1,34 @@
+{
+  "id": "global_tanker_shortage",
+  "name": "Global VLCC Fleet Shortage & Freight Rate Spike",
+  "category": "MARITIME_LOGISTICS",
+  "description": "Longer haul trade routes to Europe post-sanctions absorb 15% of global VLCC capacity, driving spot Worldscale rates to WS 180 (+250% freight surcharge).",
+  "brent_baseline_usd": 88.0,
+  "crude_price_spike_usd": 8.0,
+  "disrupted_route": "Atlantic Route",
+  "disrupted_supplier": null,
+  "affected_regions": ["Global Tanker Market", "Middle East Gulf", "West Africa"],
+  "parameters": {
+    "geopolitical_risk": 55,
+    "maritime_delay_days": 10,
+    "insurance_premium_multiplier": 2.5,
+    "port_capacity_fraction": 0.80,
+    "weather_severity_idx": 10,
+    "cyber_threat_idx": 10,
+    "market_volatility_idx": 65,
+    "opec_cut_mbbl": 0.0,
+    "inventory_days": 35,
+    "supply_shortfall_mbbl": 1.5
+  },
+  "kpi": {
+    "risk_score": 64,
+    "crisis_level": "ELEVATED",
+    "active_incidents": 2,
+    "supply_gap": "1.5M bbl/day",
+    "spr_coverage": 50,
+    "active_sanctions": 0
+  },
+  "timeline": [
+    {"step": 0, "time": "00:00", "event": "Baltic Dirty Tanker Index leaps 85 points in 48 hours.", "type": "WARNING", "risk": 64}
+  ]
+}

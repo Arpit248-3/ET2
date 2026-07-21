@@ -1,0 +1,38 @@
+[
+  {
+    "id": "spr-001",
+    "name": "Visakhapatnam",
+    "state": "Andhra Pradesh",
+    "capacity_mbbl": 13.3,
+    "current_stock_mbbl": 8.9,
+    "status": "OPERATIONAL",
+    "type": "Underground Cavern",
+    "drawdown_rate_mbbl_day": 0.5,
+    "lat": 17.6868,
+    "lon": 83.2185
+  },
+  {
+    "id": "spr-002",
+    "name": "Mangaluru",
+    "state": "Karnataka",
+    "capacity_mbbl": 11.5,
+    "current_stock_mbbl": 7.8,
+    "status": "OPERATIONAL",
+    "type": "Underground Cavern",
+    "drawdown_rate_mbbl_day": 0.4,
+    "lat": 12.9141,
+    "lon": 74.8560
+  },
+  {
+    "id": "spr-003",
+    "name": "Padur",
+    "state": "Karnataka",
+    "capacity_mbbl": 12.0,
+    "current_stock_mbbl": 6.9,
+    "status": "MAINTENANCE",
+    "type": "Underground Cavern",
+    "drawdown_rate_mbbl_day": 0.3,
+    "lat": 13.0159,
+    "lon": 74.7957
+  }
+]

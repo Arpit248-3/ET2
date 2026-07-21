@@ -1,0 +1,36 @@
+{
+  "id": "cyclone_biparjoy_gujarat",
+  "name": "Cyclone Biparjoy Port Lockout (Gujarat)",
+  "category": "WEATHER_EXTREME",
+  "description": "Category 4 tropical cyclone forces complete shutdown of SPM offloading terminals at Vadinar, Sikka, and Mundra ports, halting 65% of India's crude import intake.",
+  "brent_baseline_usd": 88.0,
+  "crude_price_spike_usd": 4.0,
+  "disrupted_route": null,
+  "disrupted_supplier": null,
+  "affected_regions": ["Gulf of Kutch", "Gujarat Coast", "Jamnagar Refining Hub"],
+  "parameters": {
+    "geopolitical_risk": 15,
+    "maritime_delay_days": 6,
+    "insurance_premium_multiplier": 2.1,
+    "port_capacity_fraction": 0.15,
+    "weather_severity_idx": 95,
+    "cyber_threat_idx": 5,
+    "market_volatility_idx": 40,
+    "opec_cut_mbbl": 0.0,
+    "inventory_days": 28,
+    "supply_shortfall_mbbl": 2.8
+  },
+  "kpi": {
+    "risk_score": 76,
+    "crisis_level": "CRITICAL",
+    "active_incidents": 3,
+    "supply_gap": "2.8M bbl/day",
+    "spr_coverage": 42,
+    "active_sanctions": 0
+  },
+  "timeline": [
+    {"step": 0, "time": "00:00", "event": "IMD issues Red Alert for Gulf of Kutch ports.", "type": "WARNING", "risk": 40},
+    {"step": 1, "time": "06:00", "type": "CRITICAL", "event": "Sikka and Vadinar SPM berths suspended. 8 VLCCs ordered to sea.", "risk": 70},
+    {"step": 2, "time": "12:00", "type": "CRITICAL", "event": "Landfall with 140 km/h winds. Inland refinery pipelines throttled.", "risk": 76}
+  ]
+}

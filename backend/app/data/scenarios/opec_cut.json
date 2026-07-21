@@ -1,0 +1,56 @@
+{
+  "id": "opec_cut",
+  "name": "OPEC+ Production Cut 2M bbl/day",
+  "description": "OPEC+ emergency meeting results in coordinated production cut of 2M bbl/day effective immediately. India's Middle East supply reduced by 35%.",
+  "severity": "HIGH",
+  "probability": 71,
+  "region": "Vienna / OPEC Members",
+  "activated_at": null,
+  "duration_days": 90,
+  "geopolitical_risk": 62,
+  "maritime_delay_pct": 4,
+  "crude_price_spike_usd": 6.2,
+  "insurance_premium_spike_pct": 12,
+  "affected_routes": ["Persian Gulf", "Red Sea"],
+  "safe_routes": ["Cape of Good Hope", "Atlantic"],
+  "affected_suppliers": ["Saudi Arabia", "UAE", "Iraq", "Kuwait", "Libya", "Nigeria"],
+  "safe_suppliers": ["Brazil", "USA", "Norway"],
+  "brent_baseline_usd": 88.0,
+  "brent_shock_usd": 94.2,
+  "india_import_gap_mbbl_day": 1.8,
+  "economic": {
+    "inflation_pct": 1.3,
+    "gdp_impact_pct": -0.28,
+    "fuel_price_rise_inr": 9.1,
+    "fiscal_cost_cr": 19000,
+    "current_account_deficit_pct_gdp": -0.9,
+    "trade_deficit_cr": 13800
+  },
+  "risk_weights": {
+    "geopolitical_risk": 0.25,
+    "maritime_delay": 0.10,
+    "crude_price_spike": 0.25,
+    "insurance_premium": 0.08,
+    "supplier_reliability": 0.15,
+    "sanctions_exposure": 0.07,
+    "spr_coverage": 0.10
+  },
+  "timeline": [
+    { "time": "08:00", "event": "Normal operations — Brent $88/bbl, OPEC+ talks ongoing", "type": "INFO", "risk": 28, "step": 0 },
+    { "time": "09:00", "event": "Emergency OPEC+ session announced in Vienna", "type": "WARNING", "risk": 42, "step": 1 },
+    { "time": "10:00", "event": "Production cut of 2M bbl/day confirmed", "type": "CRITICAL", "risk": 58, "step": 2 },
+    { "time": "11:00", "event": "Brent surges to $94.2/bbl — India supply gap computed", "type": "CRITICAL", "risk": 65, "step": 3 },
+    { "time": "12:00", "event": "AI activates alternate supplier screening", "type": "AI", "risk": 65, "step": 4 },
+    { "time": "13:00", "event": "Brazil and USA identified as primary alternatives", "type": "ACTION", "risk": 62, "step": 5 },
+    { "time": "14:00", "event": "SPR drawdown plan issued — 60-day coverage", "type": "ACTION", "risk": 58, "step": 6 },
+    { "time": "15:00", "event": "Compliance validated — no sanctions exposure", "type": "ACTION", "risk": 52, "step": 7 }
+  ],
+  "kpi": {
+    "risk_score": 62,
+    "crisis_level": "HIGH",
+    "active_incidents": 2,
+    "supply_gap": "1.8M bbl/day",
+    "spr_coverage": 72,
+    "active_sanctions": 8
+  }
+}

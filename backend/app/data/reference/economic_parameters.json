@@ -1,0 +1,162 @@
+{
+  "baseline_crude_price_usd": 88.0,
+  "baseline_usdinr": 83.2,
+  "baseline_monthly_crude_import_mbbl": 146.0,
+  "oil_import_dependency": 0.87,
+  "baseline_cpi": 186.3,
+  "baseline_gdp_growth": 6.8,
+  "baseline_cad_pct_gdp": 1.2,
+  "baseline_nominal_gdp_usd_bn": 3900.0,
+  "baseline_petrol_price_inr_litre": 100.0,
+  "baseline_diesel_price_inr_litre": 90.0,
+  "cpi_weights": {
+    "fuel_light": 6.84,
+    "transport_communication": 8.59,
+    "food_indirect": 8.5,
+    "manufacturing_indirect": 12.0
+  },
+  "pass_through_levels": {
+    "low": 0.25,
+    "medium": 0.45,
+    "high": 0.65,
+    "full": 0.9
+  },
+  "sector_elasticities": {
+    "transport": 0.68,
+    "aviation": 0.82,
+    "logistics": 0.74,
+    "fertilizer": 0.43,
+    "manufacturing": 0.36,
+    "agriculture": 0.29,
+    "construction": 0.31,
+    "services": 0.18
+  },
+  "gdp_sensitivity": {
+    "oil_price_10pct_shock_growth_drag": 0.2,
+    "supply_gap_1mbpd_growth_drag": 0.08,
+    "confidence_shock_multiplier": 0.18
+  },
+  "fiscal_parameters": {
+    "excise_buffer_pct": 0.12,
+    "subsidy_absorption_pct": 0.18,
+    "public_sector_absorption_pct": 0.08
+  },
+  "model_coefficients": {
+    "shipping_delay_to_landed_cost_pct_per_day": 0.12,
+    "insurance_to_landed_cost_pct": 0.04,
+    "supplier_disruption_to_landed_cost_pct": 0.03,
+    "fx_pressure_per_usd_bn_pct": 0.035,
+    "food_indirect_pass_through": 0.22,
+    "manufacturing_indirect_pass_through": 0.18,
+    "rural_food_sensitivity": 1.18,
+    "urban_transport_sensitivity": 1.22,
+    "state_supply_gap_weight": 8.5,
+    "uncertainty_base_pct": 0.14
+  },
+  "household_monthly_spend_inr": {
+    "urban": {
+      "fuel_transport": 5200,
+      "electricity_lpg": 1650,
+      "food_sensitive": 10800,
+      "manufactured_goods": 6200
+    },
+    "rural": {
+      "fuel_transport": 2550,
+      "electricity_lpg": 980,
+      "food_sensitive": 7800,
+      "manufactured_goods": 3400
+    }
+  },
+  "state_exposures": [
+    {
+      "state": "Gujarat",
+      "population_mn": 70,
+      "fuel_dependency": 0.86,
+      "industry_exposure": 0.95,
+      "logistics_dependency": 0.74,
+      "rural_sensitivity": 0.42,
+      "main_driver": "refining and petrochemicals"
+    },
+    {
+      "state": "Maharashtra",
+      "population_mn": 124,
+      "fuel_dependency": 0.78,
+      "industry_exposure": 0.82,
+      "logistics_dependency": 0.86,
+      "rural_sensitivity": 0.48,
+      "main_driver": "urban transport and manufacturing"
+    },
+    {
+      "state": "Uttar Pradesh",
+      "population_mn": 240,
+      "fuel_dependency": 0.66,
+      "industry_exposure": 0.48,
+      "logistics_dependency": 0.72,
+      "rural_sensitivity": 0.88,
+      "main_driver": "food distribution and agriculture"
+    },
+    {
+      "state": "Tamil Nadu",
+      "population_mn": 77,
+      "fuel_dependency": 0.73,
+      "industry_exposure": 0.78,
+      "logistics_dependency": 0.76,
+      "rural_sensitivity": 0.46,
+      "main_driver": "ports, autos, and electronics"
+    },
+    {
+      "state": "Rajasthan",
+      "population_mn": 82,
+      "fuel_dependency": 0.7,
+      "industry_exposure": 0.58,
+      "logistics_dependency": 0.82,
+      "rural_sensitivity": 0.76,
+      "main_driver": "long-haul freight and mining"
+    },
+    {
+      "state": "Punjab",
+      "population_mn": 31,
+      "fuel_dependency": 0.62,
+      "industry_exposure": 0.46,
+      "logistics_dependency": 0.68,
+      "rural_sensitivity": 0.82,
+      "main_driver": "agriculture and diesel irrigation"
+    },
+    {
+      "state": "Haryana",
+      "population_mn": 30,
+      "fuel_dependency": 0.68,
+      "industry_exposure": 0.64,
+      "logistics_dependency": 0.74,
+      "rural_sensitivity": 0.63,
+      "main_driver": "freight corridors and agro-industry"
+    },
+    {
+      "state": "West Bengal",
+      "population_mn": 99,
+      "fuel_dependency": 0.58,
+      "industry_exposure": 0.54,
+      "logistics_dependency": 0.62,
+      "rural_sensitivity": 0.69,
+      "main_driver": "port logistics and food movement"
+    },
+    {
+      "state": "Karnataka",
+      "population_mn": 68,
+      "fuel_dependency": 0.56,
+      "industry_exposure": 0.58,
+      "logistics_dependency": 0.58,
+      "rural_sensitivity": 0.44,
+      "main_driver": "urban mobility and light industry"
+    },
+    {
+      "state": "Andhra Pradesh",
+      "population_mn": 54,
+      "fuel_dependency": 0.61,
+      "industry_exposure": 0.6,
+      "logistics_dependency": 0.64,
+      "rural_sensitivity": 0.67,
+      "main_driver": "port-linked refining and fisheries"
+    }
+  ]
+}

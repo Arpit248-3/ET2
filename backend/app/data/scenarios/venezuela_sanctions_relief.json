@@ -1,0 +1,34 @@
+{
+  "id": "venezuela_sanctions_relief",
+  "name": "Venezuela Sanctions Relief & Heavy Crude Arbitrage",
+  "category": "OPPORTUNITY_ARBITRAGE",
+  "description": "OFAC grants temporary General License 44 relief, unlocking 0.5M bbl/day discount heavy Merey crude for complex Indian coker refineries.",
+  "brent_baseline_usd": 88.0,
+  "crude_price_spike_usd": -4.5,
+  "disrupted_route": null,
+  "disrupted_supplier": null,
+  "affected_regions": ["Caribbean Sea", "Atlantic Passage", "Paradip & Vizag Refineries"],
+  "parameters": {
+    "geopolitical_risk": 30,
+    "maritime_delay_days": 18,
+    "insurance_premium_multiplier": 1.1,
+    "port_capacity_fraction": 0.95,
+    "weather_severity_idx": 10,
+    "cyber_threat_idx": 10,
+    "market_volatility_idx": 25,
+    "opec_cut_mbbl": 0.0,
+    "inventory_days": 50,
+    "supply_shortfall_mbbl": 0.0
+  },
+  "kpi": {
+    "risk_score": 28,
+    "crisis_level": "NORMAL",
+    "active_incidents": 0,
+    "supply_gap": "0.0M bbl/day",
+    "spr_coverage": 66,
+    "active_sanctions": 0
+  },
+  "timeline": [
+    {"step": 0, "time": "00:00", "event": "US Treasury issues General License 44 authorizing oil exports.", "type": "INFO", "risk": 28}
+  ]
+}

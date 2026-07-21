@@ -1,0 +1,139 @@
+{
+  "id": "test_custom_gulf_escalation",
+  "name": "Test Custom Gulf Escalation",
+  "description": "Custom scenario: Test Custom Gulf Escalation with price change: 18.0% and shipping delay: 9 days.",
+  "severity": "CRITICAL",
+  "probability": 50,
+  "region": "Custom Region",
+  "activated_at": null,
+  "duration_days": 30,
+  "geopolitical_risk": 80,
+  "maritime_delay_pct": 9,
+  "crude_price_spike_usd": 15.84,
+  "insurance_premium_spike_pct": 28,
+  "affected_routes": [
+    "Strait of Hormuz"
+  ],
+  "safe_routes": [
+    "Cape of Good Hope",
+    "Atlantic",
+    "Pacific"
+  ],
+  "affected_suppliers": [
+    "Iraq",
+    "Saudi Arabia",
+    "UAE"
+  ],
+  "safe_suppliers": [
+    "West Africa",
+    "Brazil",
+    "USA"
+  ],
+  "brent_baseline_usd": 88.0,
+  "brent_shock_usd": 103.84,
+  "india_import_gap_mbbl_day": 2.4,
+  "economic": {
+    "inflation_pct": 1.8,
+    "gdp_impact_pct": -0.36,
+    "fuel_price_rise_inr": 12.6,
+    "fiscal_cost_cr": 27000,
+    "current_account_deficit_pct_gdp": -1.26,
+    "trade_deficit_cr": 18000
+  },
+  "risk_weights": {
+    "geopolitical_risk": 0.25,
+    "maritime_delay": 0.2,
+    "crude_price_spike": 0.15,
+    "insurance_premium": 0.1,
+    "supplier_reliability": 0.15,
+    "sanctions_exposure": 0.1,
+    "spr_coverage": 0.05
+  },
+  "timeline": [
+    {
+      "time": "09:00",
+      "event": "Baseline operations \u2014 Brent $88/bbl",
+      "type": "INFO",
+      "risk": 32,
+      "step": 0
+    },
+    {
+      "time": "09:15",
+      "event": "Risk detected in Strait of Hormuz",
+      "type": "WARNING",
+      "risk": 45,
+      "step": 1
+    },
+    {
+      "time": "09:30",
+      "event": "Tension escalates. Route risk assessed as critical",
+      "type": "WARNING",
+      "risk": 62,
+      "step": 2
+    },
+    {
+      "time": "10:00",
+      "event": "Price shock hits \u2014 Brent reaches $103.84/bbl",
+      "type": "CRITICAL",
+      "risk": 74,
+      "step": 3
+    },
+    {
+      "time": "10:15",
+      "event": "AI runs simulation \u2014 import gap: 2.4M bbl/day detected",
+      "type": "AI",
+      "risk": 83,
+      "step": 4
+    },
+    {
+      "time": "10:30",
+      "event": "Procurement optimizer calculates safe supplier mix",
+      "type": "AI",
+      "risk": 82,
+      "step": 5
+    },
+    {
+      "time": "10:45",
+      "event": "SPR bridge planned \u2014 drawdown authorization initiated",
+      "type": "ACTION",
+      "risk": 76,
+      "step": 6
+    },
+    {
+      "time": "11:00",
+      "event": "Compliance checks completed for alternate shipping routes",
+      "type": "ACTION",
+      "risk": 69,
+      "step": 7
+    },
+    {
+      "time": "11:15",
+      "event": "Red Team issues critique on cargo delay assumptions",
+      "type": "AI",
+      "risk": 65,
+      "step": 8
+    },
+    {
+      "time": "11:30",
+      "event": "Executive Brief generated for national energy council",
+      "type": "ACTION",
+      "risk": 61,
+      "step": 9
+    },
+    {
+      "time": "11:45",
+      "event": "Crisis response plan approved by Commander Arjun Mehta",
+      "type": "ACTION",
+      "risk": 58,
+      "step": 10
+    }
+  ],
+  "kpi": {
+    "risk_score": 80,
+    "crisis_level": "CRITICAL",
+    "active_incidents": 4,
+    "supply_gap": "2.4M bbl/day",
+    "spr_coverage": 8,
+    "active_sanctions": 6
+  }
+}

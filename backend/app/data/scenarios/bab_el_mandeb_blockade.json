@@ -1,0 +1,37 @@
+{
+  "id": "bab_el_mandeb_blockade",
+  "name": "Bab-el-Mandeb Chokepoint Blockade",
+  "category": "MARITIME_DISRUPTION",
+  "description": "Missile attacks on commercial tankers in the Red Sea force complete diversion of European and West African crude cargoes around the Cape of Good Hope, adding 14 days to transit times and boosting war risk insurance premiums.",
+  "brent_baseline_usd": 88.0,
+  "crude_price_spike_usd": 14.5,
+  "disrupted_route": "Cape of Good Hope",
+  "disrupted_supplier": null,
+  "affected_regions": ["Red Sea", "Suez Canal", "Horn of Africa"],
+  "parameters": {
+    "geopolitical_risk": 85,
+    "maritime_delay_days": 14,
+    "insurance_premium_multiplier": 3.8,
+    "port_capacity_fraction": 0.85,
+    "weather_severity_idx": 15,
+    "cyber_threat_idx": 20,
+    "market_volatility_idx": 75,
+    "opec_cut_mbbl": 0.0,
+    "inventory_days": 32,
+    "supply_shortfall_mbbl": 2.2
+  },
+  "kpi": {
+    "risk_score": 78,
+    "crisis_level": "CRITICAL",
+    "active_incidents": 4,
+    "supply_gap": "2.2M bbl/day",
+    "spr_coverage": 48,
+    "active_sanctions": 0
+  },
+  "timeline": [
+    {"step": 0, "time": "00:00", "event": "First anti-ship missile attack reported off Bab-el-Mandeb.", "type": "CRITICAL", "risk": 45},
+    {"step": 1, "time": "06:00", "type": "CRITICAL", "event": "P&I insurance coverage suspended for Red Sea transit.", "risk": 68},
+    {"step": 2, "time": "12:00", "type": "CRITICAL", "event": "Major VLCC operators order immediate rerouting via Cape of Good Hope.", "risk": 78},
+    {"step": 3, "time": "18:00", "type": "WARNING", "event": "Emergency SPR drawdown authorization requested.", "risk": 75}
+  ]
+}

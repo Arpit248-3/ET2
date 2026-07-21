@@ -1,0 +1,35 @@
+{
+  "id": "refinery_fire_jamnagar",
+  "name": "Jamnagar Export Refinery Fire Outage",
+  "category": "INFRASTRUCTURE_FAILURE",
+  "description": "Major industrial explosion in the Fluid Catalytic Cracking Unit (FCCU) at Jamnagar forces a 45-day shutdown of 0.6M bbl/day refining capacity.",
+  "brent_baseline_usd": 88.0,
+  "crude_price_spike_usd": 5.5,
+  "disrupted_route": null,
+  "disrupted_supplier": null,
+  "affected_regions": ["Jamnagar", "Gujarat", "Domestic Product Market"],
+  "parameters": {
+    "geopolitical_risk": 10,
+    "maritime_delay_days": 2,
+    "insurance_premium_multiplier": 1.2,
+    "port_capacity_fraction": 0.80,
+    "weather_severity_idx": 10,
+    "cyber_threat_idx": 15,
+    "market_volatility_idx": 55,
+    "opec_cut_mbbl": 0.0,
+    "inventory_days": 35,
+    "supply_shortfall_mbbl": 0.6
+  },
+  "kpi": {
+    "risk_score": 52,
+    "crisis_level": "MODERATE",
+    "active_incidents": 2,
+    "supply_gap": "0.6M bbl/day",
+    "spr_coverage": 60,
+    "active_sanctions": 0
+  },
+  "timeline": [
+    {"step": 0, "time": "00:00", "event": "Thermal sensor alarm triggered in FCCU-2 hydrocracker unit.", "type": "CRITICAL", "risk": 30},
+    {"step": 1, "time": "04:00", "type": "CRITICAL", "event": "Fire contained; emergency unit shutdown confirmed for 45 days.", "risk": 52}
+  ]
+}

@@ -1,0 +1,1 @@
+"""Shared AI model contracts."""

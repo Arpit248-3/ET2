@@ -1,0 +1,62 @@
+[
+  {
+    "id": "ref-001",
+    "name": "Jamnagar (Reliance / IOC)",
+    "location": "Gujarat",
+    "capacity_mbbl_day": 1.24,
+    "compatible_crudes": ["Arab Light", "Bonny Light", "Murban", "Basrah Light", "WTI Midland"],
+    "compatibility_score": 96,
+    "status": "OPERATIONAL",
+    "port": "Vadinar"
+  },
+  {
+    "id": "ref-002",
+    "name": "Vadinar (Nayara Energy)",
+    "location": "Gujarat",
+    "capacity_mbbl_day": 0.40,
+    "compatible_crudes": ["Urals", "Arab Heavy", "Iraqi Basrah"],
+    "compatibility_score": 88,
+    "status": "OPERATIONAL",
+    "port": "Vadinar"
+  },
+  {
+    "id": "ref-003",
+    "name": "Kochi (BPCL)",
+    "location": "Kerala",
+    "capacity_mbbl_day": 0.31,
+    "compatible_crudes": ["Arab Light", "Bonny Light"],
+    "compatibility_score": 72,
+    "status": "OPERATIONAL",
+    "port": "Kochi"
+  },
+  {
+    "id": "ref-004",
+    "name": "Chennai (CPCL)",
+    "location": "Tamil Nadu",
+    "capacity_mbbl_day": 0.21,
+    "compatible_crudes": ["Bonny Light", "Basrah Light"],
+    "compatibility_score": 41,
+    "status": "PARTIAL",
+    "port": "Ennore"
+  },
+  {
+    "id": "ref-005",
+    "name": "Haldia (IOC)",
+    "location": "West Bengal",
+    "capacity_mbbl_day": 0.175,
+    "compatible_crudes": ["Arab Light", "Bonny Light"],
+    "compatibility_score": 65,
+    "status": "OPERATIONAL",
+    "port": "Haldia"
+  },
+  {
+    "id": "ref-006",
+    "name": "Mathura (IOC)",
+    "location": "Uttar Pradesh",
+    "capacity_mbbl_day": 0.16,
+    "compatible_crudes": ["Arab Light", "Basrah Light", "Urals"],
+    "compatibility_score": 79,
+    "status": "OPERATIONAL",
+    "port": "Paradip (pipeline)"
+  }
+]

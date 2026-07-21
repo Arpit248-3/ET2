@@ -1,0 +1,36 @@
+{
+  "id": "malacca_strait_congestion",
+  "name": "Strait of Malacca Naval Bottleneck",
+  "category": "MARITIME_DISRUPTION",
+  "description": "Collision involving a loaded VLCC in the narrow Phillips Channel blocks East Asian crude transit and disrupts inbound spot imports from Southeast Asia and Pacific suppliers.",
+  "brent_baseline_usd": 88.0,
+  "crude_price_spike_usd": 6.2,
+  "disrupted_route": "Pacific Route",
+  "disrupted_supplier": null,
+  "affected_regions": ["Strait of Malacca", "Singapore Strait", "South China Sea"],
+  "parameters": {
+    "geopolitical_risk": 40,
+    "maritime_delay_days": 8,
+    "insurance_premium_multiplier": 1.6,
+    "port_capacity_fraction": 0.60,
+    "weather_severity_idx": 20,
+    "cyber_threat_idx": 10,
+    "market_volatility_idx": 45,
+    "opec_cut_mbbl": 0.0,
+    "inventory_days": 42,
+    "supply_shortfall_mbbl": 1.1
+  },
+  "kpi": {
+    "risk_score": 58,
+    "crisis_level": "ELEVATED",
+    "active_incidents": 2,
+    "supply_gap": "1.1M bbl/day",
+    "spr_coverage": 54,
+    "active_sanctions": 0
+  },
+  "timeline": [
+    {"step": 0, "time": "00:00", "event": "Grounding of 300,000 DWT tanker in Phillips Channel.", "type": "WARNING", "risk": 35},
+    {"step": 1, "time": "08:00", "type": "WARNING", "event": "Salvage operations force single-lane traffic restriction.", "risk": 52},
+    {"step": 2, "time": "16:00", "type": "INFO", "event": "East Coast Indian refineries adjust crude intake blend ratios.", "risk": 58}
+  ]
+}

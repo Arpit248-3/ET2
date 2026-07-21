@@ -1,0 +1,62 @@
+[
+  {
+    "id": "ct-001",
+    "name": "Bonny Light",
+    "origin": "Nigeria",
+    "api_gravity": 35.4,
+    "sulfur_pct": 0.14,
+    "classification": "Light Sweet",
+    "compatible_refineries": ["Jamnagar", "Kochi", "Haldia", "Chennai"],
+    "price_premium_usd": 1.2
+  },
+  {
+    "id": "ct-002",
+    "name": "Arab Light",
+    "origin": "Saudi Arabia",
+    "api_gravity": 32.8,
+    "sulfur_pct": 1.80,
+    "classification": "Medium Sour",
+    "compatible_refineries": ["Jamnagar", "Kochi", "Haldia", "Mathura"],
+    "price_premium_usd": 0.0
+  },
+  {
+    "id": "ct-003",
+    "name": "Urals",
+    "origin": "Russia",
+    "api_gravity": 31.7,
+    "sulfur_pct": 1.62,
+    "classification": "Medium Sour",
+    "compatible_refineries": ["Vadinar", "Mathura"],
+    "price_premium_usd": -4.2
+  },
+  {
+    "id": "ct-004",
+    "name": "Lula (Tupi)",
+    "origin": "Brazil",
+    "api_gravity": 28.9,
+    "sulfur_pct": 0.41,
+    "classification": "Medium Sweet",
+    "compatible_refineries": ["Jamnagar", "Kochi"],
+    "price_premium_usd": 2.1
+  },
+  {
+    "id": "ct-005",
+    "name": "Murban",
+    "origin": "UAE",
+    "api_gravity": 40.5,
+    "sulfur_pct": 0.78,
+    "classification": "Light Sweet",
+    "compatible_refineries": ["Jamnagar", "Kochi", "Haldia"],
+    "price_premium_usd": 0.8
+  },
+  {
+    "id": "ct-006",
+    "name": "WTI Midland",
+    "origin": "USA",
+    "api_gravity": 41.2,
+    "sulfur_pct": 0.24,
+    "classification": "Light Sweet",
+    "compatible_refineries": ["Jamnagar", "Chennai"],
+    "price_premium_usd": 3.1
+  }
+]

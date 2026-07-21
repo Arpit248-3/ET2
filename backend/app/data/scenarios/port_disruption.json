@@ -1,0 +1,54 @@
+{
+  "id": "port_disruption",
+  "name": "Major Port Disruption — Cyclone & Strike",
+  "description": "Category 4 cyclone hits Gulf of Khambhat, disabling Vadinar and Mundra ports for 10 days. Concurrent dock worker strike at Paradip extends operational closure.",
+  "severity": "MEDIUM",
+  "probability": 45,
+  "region": "India (Western & Eastern Coast)",
+  "activated_at": null,
+  "duration_days": 15,
+  "geopolitical_risk": 20,
+  "maritime_delay_pct": 22,
+  "crude_price_spike_usd": 2.1,
+  "insurance_premium_spike_pct": 18,
+  "affected_routes": ["Vadinar", "Mundra", "Paradip"],
+  "safe_routes": ["Vizag", "Ennore", "Kochi"],
+  "affected_suppliers": ["All inbound via Western India"],
+  "safe_suppliers": ["East Coast redirectable"],
+  "brent_baseline_usd": 88.0,
+  "brent_shock_usd": 90.1,
+  "india_import_gap_mbbl_day": 0.8,
+  "economic": {
+    "inflation_pct": 0.5,
+    "gdp_impact_pct": -0.09,
+    "fuel_price_rise_inr": 3.2,
+    "fiscal_cost_cr": 5800,
+    "current_account_deficit_pct_gdp": -0.3,
+    "trade_deficit_cr": 4100
+  },
+  "risk_weights": {
+    "geopolitical_risk": 0.05,
+    "maritime_delay": 0.35,
+    "crude_price_spike": 0.10,
+    "insurance_premium": 0.15,
+    "supplier_reliability": 0.20,
+    "sanctions_exposure": 0.05,
+    "spr_coverage": 0.10
+  },
+  "timeline": [
+    { "time": "06:00", "event": "Cyclone warning issued — Category 3 approaching Gujarat coast", "type": "WARNING", "risk": 35, "step": 0 },
+    { "time": "09:00", "event": "Cyclone upgraded to Category 4 — Vadinar port on alert", "type": "CRITICAL", "risk": 52, "step": 1 },
+    { "time": "12:00", "event": "Vadinar and Mundra ports closed — all traffic diverted", "type": "CRITICAL", "risk": 61, "step": 2 },
+    { "time": "14:00", "event": "Paradip dock workers announce 48-hour strike", "type": "WARNING", "risk": 66, "step": 3 },
+    { "time": "16:00", "event": "AI re-routes 3 incoming VLCCs to Vizag and Ennore", "type": "AI", "risk": 62, "step": 4 },
+    { "time": "18:00", "event": "SPR Padur site authorized for emergency drawdown", "type": "ACTION", "risk": 58, "step": 5 }
+  ],
+  "kpi": {
+    "risk_score": 52,
+    "crisis_level": "MEDIUM",
+    "active_incidents": 2,
+    "supply_gap": "0.8M bbl/day",
+    "spr_coverage": 68,
+    "active_sanctions": 0
+  }
+}

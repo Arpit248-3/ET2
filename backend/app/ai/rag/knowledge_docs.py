@@ -1,0 +1,98 @@
+"""
+Knowledge Documents Store for RAG Retrieval Node.
+Contains official policy directives, OPEC reports, refinery specs, SPR guidelines, and compliance frameworks.
+"""
+from typing import Dict, List, Any
+
+KNOWLEDGE_DOCUMENTS: List[Dict[str, Any]] = [
+    {
+        "id": "doc-001",
+        "title": "OPEC Production Cut & Global Supply Balance Report 2025",
+        "source": "OPEC_Report_2025",
+        "category": "SUPPLY_ANALYSIS",
+        "keywords": ["opec", "production", "cut", "bbl", "saudi", "uae", "supply", "brent", "price"],
+        "content": "OPEC+ members agreed to extend voluntary crude oil production cuts of 2.2 million bbl/day through Q4. Saudi Arabia and UAE lead reductions to stabilize Brent prices near $85-90/bbl. Import-dependent nations like India must diversify term contracts to Atlantic and West African suppliers to offset Middle East quota contractions.",
+        "text": "OPEC+ members agreed to extend voluntary crude oil production cuts of 2.2 million bbl/day through Q4. Saudi Arabia and UAE lead reductions to stabilize Brent prices near $85-90/bbl. Import-dependent nations like India must diversify term contracts to Atlantic and West African suppliers to offset Middle East quota contractions.",
+    },
+    {
+        "id": "doc-002",
+        "title": "MoP&NG Emergency SPR Drawdown & Replenishment Directive",
+        "source": "MoPNG_Emergency_Drawdown_Guidelines",
+        "category": "SPR_POLICY",
+        "keywords": ["spr", "drawdown", "reserve", "days", "cover", "visakhapatnam", "mangalore", "padur", "capacity"],
+        "content": "Ministry of Petroleum & Natural Gas guidelines mandate a minimum 15-day emergency SPR reserve buffer under all crisis conditions. Drawdowns must be executed proportionally across Visakhapatnam (1.33 MMT), Mangaluru (1.5 MMT), and Padur (2.5 MMT) caverns up to a maximum combined discharge rate of 3.6 million bbl/day.",
+        "text": "Ministry of Petroleum & Natural Gas guidelines mandate a minimum 15-day emergency SPR reserve buffer under all crisis conditions. Drawdowns must be executed proportionally across Visakhapatnam (1.33 MMT), Mangaluru (1.5 MMT), and Padur (2.5 MMT) caverns up to a maximum combined discharge rate of 3.6 million bbl/day.",
+    },
+    {
+        "id": "doc-003",
+        "title": "OFAC SDN List & G7 Price Cap Compliance Framework",
+        "source": "OFAC_Sanctions_Compliance_Directive",
+        "category": "COMPLIANCE_LEGAL",
+        "keywords": ["sanctions", "ofac", "sdn", "russia", "urals", "g7", "price", "cap", "compliance", "illegal", "block"],
+        "content": "Under US OFAC directives and G7 maritime regulations, Russian crude purchases exceeding the $60.0/bbl price cap threshold or utilizing sanctioned shadow fleet VLCCs on the SDN list are strictly prohibited. Compliance engines must flag Russian Urals cargoes and mandate substitution with West African (Bonny Light) or Brazilian (Tupi) crude slates.",
+        "text": "Under US OFAC directives and G7 maritime regulations, Russian crude purchases exceeding the $60.0/bbl price cap threshold or utilizing sanctioned shadow fleet VLCCs on the SDN list are strictly prohibited. Compliance engines must flag Russian Urals cargoes and mandate substitution with West African (Bonny Light) or Brazilian (Tupi) crude slates.",
+    },
+    {
+        "id": "doc-004",
+        "title": "NEMC Maritime Chokepoint & Route Diversion Protocol",
+        "source": "NEMC_Maritime_Chokepoint_Protocols",
+        "category": "MARITIME_LOGISTICS",
+        "keywords": ["hormuz", "strait", "chokepoint", "route", "cape", "good", "hope", "delay", "vessel", "vlcc", "safest"],
+        "content": "During heightened naval tensions or chokepoint blockades in the Strait of Hormuz or Bab-el-Mandeb, National Energy Management Committee protocols mandate immediate rerouting of crude tankers via the Cape of Good Hope. Rerouting adds 12-14 days to transit time but reduces maritime threat vulnerability scores from 85/100 to 15/100.",
+        "text": "During heightened naval tensions or chokepoint blockades in the Strait of Hormuz or Bab-el-Mandeb, National Energy Management Committee protocols mandate immediate rerouting of crude tankers via the Cape of Good Hope. Rerouting adds 12-14 days to transit time but reduces maritime threat vulnerability scores from 85/100 to 15/100.",
+    },
+    {
+        "id": "doc-005",
+        "title": "IOCL & HPCL Refinery Feedstock Assay Specifications",
+        "source": "IOCL_Refinery_Feedstock_Specifications",
+        "category": "REFINERY_METALLURGY",
+        "keywords": ["refinery", "assay", "sulfur", "api", "gravity", "sweet", "sour", "blending", "jamnagar", "paradip", "koyali"],
+        "content": "Indian PSU refineries require feedstock sulfur content <= 1.2% wt for standard hydrotreaters. High-sulfur medium sour crudes like Arab Light (1.97% S) require 35% blending with light sweet crudes (Murban 0.78% S or WTI Midland 0.15% S) to avoid desulfurization unit corrosion and refining cost penalties ($2.5/bbl).",
+        "text": "Indian PSU refineries require feedstock sulfur content <= 1.2% wt for standard hydrotreaters. High-sulfur medium sour crudes like Arab Light (1.97% S) require 35% blending with light sweet crudes (Murban 0.78% S or WTI Midland 0.15% S) to avoid desulfurization unit corrosion and refining cost penalties ($2.5/bbl).",
+    },
+    {
+        "id": "doc-006",
+        "title": "GIC Re War Risk Maritime Insurance Regulations",
+        "source": "GIC_Re_War_Risk_Insurance_Rules",
+        "category": "INSURANCE_LEGAL",
+        "keywords": ["insurance", "war", "risk", "premium", "p&i", "indemnity", "gulf", "red", "sea"],
+        "content": "P&I Clubs automatically impose War Risk Breach surcharges (+350% premium) on tankers entering designated high-hazard zones including the Persian Gulf and Red Sea. Indian state refiners must obtain backstop indemnity letters from General Insurance Corporation of India (GIC Re) prior to chartering vessels through active threat corridors.",
+        "text": "P&I Clubs automatically impose War Risk Breach surcharges (+350% premium) on tankers entering designated high-hazard zones including the Persian Gulf and Red Sea. Indian state refiners must obtain backstop indemnity letters from General Insurance Corporation of India (GIC Re) prior to chartering vessels through active threat corridors.",
+    },
+    {
+        "id": "doc-007",
+        "title": "PPAC Indian Crude Basket Pricing & Exchange Rate Policy",
+        "source": "PPAC_Crude_Basket_Pricing_Methodology",
+        "category": "ECONOMIC_POLICY",
+        "keywords": ["economic", "import", "bill", "cad", "inflation", "cpi", "retail", "fuel", "rupee", "usd"],
+        "content": "The Petroleum Planning & Analysis Cell (PPAC) Indian Crude Basket is derived from Oman/Dubai sour crude and Brent sweet crude in a 71:29 ratio. Every $1.00/bbl increase in the Indian Basket price increases India's annual crude import bill by approximately $1.64 Billion USD and increases CPI inflation by +0.045%.",
+        "text": "The Petroleum Planning & Analysis Cell (PPAC) Indian Crude Basket is derived from Oman/Dubai sour crude and Brent sweet crude in a 71:29 ratio. Every $1.00/bbl increase in the Indian Basket price increases India's annual crude import bill by approximately $1.64 Billion USD and increases CPI inflation by +0.045%.",
+    },
+    {
+        "id": "doc-008",
+        "title": "MEA Energy Diplomacy & Sovereign Supply Bilateral Treaties",
+        "source": "Ministry_of_External_Affairs_Trade_Directives",
+        "category": "DIPLOMACY",
+        "keywords": ["diplomacy", "mea", "brazil", "uae", "west", "africa", "bilateral", "government"],
+        "content": "Ministry of External Affairs strategic directives favor long-term government-to-government (G2G) term contracts with Petrobras (Brazil) and NNPC (Nigeria) to build strategic trade corridors outside geopolitical tension zones in Western Asia.",
+        "text": "Ministry of External Affairs strategic directives favor long-term government-to-government (G2G) term contracts with Petrobras (Brazil) and NNPC (Nigeria) to build strategic trade corridors outside geopolitical tension zones in Western Asia.",
+    },
+    {
+        "id": "doc-009",
+        "title": "National Energy Crisis Action Plan (NECAP)",
+        "source": "National_Energy_Crisis_Action_Plan",
+        "category": "CRISIS_RESPONSE",
+        "keywords": ["crisis", "action", "plan", "necap", "cabinet", "approval", "emergency", "priority"],
+        "content": "Under NECAP Level 3 escalation (Risk Score > 75), Cabinet Committee on Security approval is automatically required for emergency SPR drawdown releases, retail price stabilization subsidies, and strategic crude rerouting directives.",
+        "text": "Under NECAP Level 3 escalation (Risk Score > 75), Cabinet Committee on Security approval is automatically required for emergency SPR drawdown releases, retail price stabilization subsidies, and strategic crude rerouting directives.",
+    },
+    {
+        "id": "doc-010",
+        "title": "West Africa & Atlantic Crude Sourcing Advantages",
+        "source": "West_Africa_Crude_Sourcing_Guide",
+        "category": "PROCUREMENT_STRATEGY",
+        "keywords": ["west", "africa", "nigeria", "bonny", "light", "safest", "route", "supplier", "recommendation"],
+        "content": "West African crudes (Bonny Light, Qua Iboe) offer 0.14% low sulfur sweet quality, 94% refinery compatibility, and bypass Persian Gulf chokepoints entirely via the Atlantic route. They represent India's safest primary procurement strategy during Middle East disruptions.",
+        "text": "West African crudes (Bonny Light, Qua Iboe) offer 0.14% low sulfur sweet quality, 94% refinery compatibility, and bypass Persian Gulf chokepoints entirely via the Atlantic route. They represent India's safest primary procurement strategy during Middle East disruptions.",
+    },
+]

@@ -1,0 +1,54 @@
+{
+  "id": "russia_sanctions",
+  "name": "Russia Sanctions Escalation",
+  "description": "G7 imposes sweeping oil sanctions on Russia including tanker tracking, price cap enforcement, and financial restrictions. 14 VLCC tankers flagged by OFAC.",
+  "severity": "HIGH",
+  "probability": 62,
+  "region": "Russia / Europe",
+  "activated_at": null,
+  "duration_days": 180,
+  "geopolitical_risk": 78,
+  "maritime_delay_pct": 12,
+  "crude_price_spike_usd": 5.1,
+  "insurance_premium_spike_pct": 48,
+  "affected_routes": ["Arctic", "Baltic Sea", "Black Sea"],
+  "safe_routes": ["Cape of Good Hope", "Atlantic", "Pacific"],
+  "affected_suppliers": ["Russia"],
+  "safe_suppliers": ["West Africa", "Brazil", "Saudi Arabia", "USA"],
+  "brent_baseline_usd": 88.0,
+  "brent_shock_usd": 93.1,
+  "india_import_gap_mbbl_day": 1.1,
+  "economic": {
+    "inflation_pct": 0.9,
+    "gdp_impact_pct": -0.18,
+    "fuel_price_rise_inr": 6.8,
+    "fiscal_cost_cr": 12000,
+    "current_account_deficit_pct_gdp": -0.6,
+    "trade_deficit_cr": 9200
+  },
+  "risk_weights": {
+    "geopolitical_risk": 0.20,
+    "maritime_delay": 0.15,
+    "crude_price_spike": 0.15,
+    "insurance_premium": 0.20,
+    "supplier_reliability": 0.10,
+    "sanctions_exposure": 0.15,
+    "spr_coverage": 0.05
+  },
+  "timeline": [
+    { "time": "06:00", "event": "G7 joint statement signals new Russia sanctions", "type": "WARNING", "risk": 38, "step": 0 },
+    { "time": "08:00", "event": "14 Russian VLCC tankers added to OFAC SDN list", "type": "CRITICAL", "risk": 62, "step": 1 },
+    { "time": "09:00", "event": "India's Russia crude exposure flagged — 22% of imports", "type": "CRITICAL", "risk": 72, "step": 2 },
+    { "time": "10:00", "event": "Compliance engine blocks 4 active shipments", "type": "ACTION", "risk": 74, "step": 3 },
+    { "time": "11:00", "event": "AI recommends pivot to West Africa + Saudi Arabia mix", "type": "AI", "risk": 72, "step": 4 },
+    { "time": "12:00", "event": "Procurement plan adjusted — Russia allocation set to 0%", "type": "ACTION", "risk": 65, "step": 5 }
+  ],
+  "kpi": {
+    "risk_score": 68,
+    "crisis_level": "HIGH",
+    "active_incidents": 4,
+    "supply_gap": "1.1M bbl/day",
+    "spr_coverage": 71,
+    "active_sanctions": 14
+  }
+}

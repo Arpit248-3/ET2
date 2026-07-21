@@ -1,0 +1,35 @@
+{
+  "id": "cyberattack_pipeline_scada",
+  "name": "Cross-Country Pipeline SCADA Cyberattack",
+  "category": "CYBER_ATTACK",
+  "description": "Sophisticated nation-state ransomware compromises industrial control systems governing the Salaya-Mathura and Koyali-Sanganer crude pipelines.",
+  "brent_baseline_usd": 88.0,
+  "crude_price_spike_usd": 3.0,
+  "disrupted_route": null,
+  "disrupted_supplier": null,
+  "affected_regions": ["Northern Pipeline Grid", "Mathura Refinery", "Panipat Refinery"],
+  "parameters": {
+    "geopolitical_risk": 50,
+    "maritime_delay_days": 1,
+    "insurance_premium_multiplier": 1.1,
+    "port_capacity_fraction": 0.90,
+    "weather_severity_idx": 5,
+    "cyber_threat_idx": 95,
+    "market_volatility_idx": 60,
+    "opec_cut_mbbl": 0.0,
+    "inventory_days": 38,
+    "supply_shortfall_mbbl": 1.2
+  },
+  "kpi": {
+    "risk_score": 68,
+    "crisis_level": "ELEVATED",
+    "active_incidents": 3,
+    "supply_gap": "1.2M bbl/day",
+    "spr_coverage": 58,
+    "active_sanctions": 0
+  },
+  "timeline": [
+    {"step": 0, "time": "00:00", "event": "SCADA valve telemetry anomalies detected on SMPL line.", "type": "CRITICAL", "risk": 40},
+    {"step": 1, "time": "02:00", "type": "CRITICAL", "event": "Ransomware payload encrypts dispatch controllers; manual isolation engaged.", "risk": 68}
+  ]
+}
