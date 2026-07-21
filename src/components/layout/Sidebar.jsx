@@ -68,11 +68,23 @@ export default function Sidebar({ crisisMode = false }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { pipelineState } = useScenario();
-  const unreadNotifCount = pipelineState?.notifications
-    ? pipelineState.notifications.filter(n => !n.read).length
-    : (pipelineState?.kpi?.active_incidents ?? 0);
+  const unreadNotifCount = pipelineState?.notifications_unread_count ?? (
+    pipelineState?.notifications ? pipelineState.notifications.filter(n => !n.read).length : 0
+  );
   const [collapsed, setCollapsed] = useState({});
   const [minimized, setMinimized] = useState(window.innerWidth <= 1024);
+  const navRef = React.useRef(null);
+
+  React.useLayoutEffect(() => {
+    const savedScroll = sessionStorage.getItem('urja_sidebar_scroll');
+    if (navRef.current && savedScroll !== null) {
+      navRef.current.scrollTop = Number(savedScroll);
+    }
+  }, [location.pathname]);
+
+  const handleScroll = (e) => {
+    sessionStorage.setItem('urja_sidebar_scroll', e.target.scrollTop);
+  };
 
   useEffect(() => {
     const handleResize = () => {
@@ -169,7 +181,7 @@ export default function Sidebar({ crisisMode = false }) {
       )}
 
       {/* Navigation */}
-      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '8px 0' }}>
+      <div ref={navRef} onScroll={handleScroll} style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '8px 0' }}>
         {minimized ? (
           /* ICON-ONLY MODE */
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>

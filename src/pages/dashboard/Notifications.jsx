@@ -16,9 +16,9 @@ const typeConfig = {
 };
 
 export default function Notifications() {
-  const { backendOnline, refreshState } = useScenario();
+  const { backendOnline, refreshPipeline } = useScenario();
   const { addToast } = useToast();
-  const { data: liveNotifs, loading: notifsLoading, error: notifsError, refetch } = useApi(fetchNotifications, { fallback: null });
+  const { data: liveNotifs, loading: notifsLoading, error: notifsError, execute: refetch } = useApi(fetchNotifications, { fallback: null });
   const [showPreferences, setShowPreferences] = useState(false);
   const [prefForm, setPrefForm] = useState({
     inApp: true,
@@ -62,7 +62,8 @@ export default function Notifications() {
     try {
       if (backendOnline) {
         await markNotificationsRead(id);
-        await refreshState();
+        await refetch();
+        if (refreshPipeline) await refreshPipeline();
       }
     } catch (err) {
       console.warn('Failed to sync mark read to backend:', err);
@@ -74,7 +75,8 @@ export default function Notifications() {
     try {
       if (backendOnline) {
         await markNotificationsRead('all');
-        await refreshState();
+        await refetch();
+        if (refreshPipeline) await refreshPipeline();
       }
       addToast('All notifications marked as read', 'success');
     } catch (err) {

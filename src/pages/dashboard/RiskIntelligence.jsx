@@ -220,26 +220,49 @@ export default function RiskIntelligence() {
         </GlassCard>
 
         {/* Radar Chart */}
-        <GlassCard>
-          <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>Risk Radar</h3>
-          <p style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 12 }}>Threat category heatmap</p>
-          <ResponsiveContainer width="100%" height={220}>
-            <RadarChart data={radarData}>
-              <PolarGrid stroke="rgba(90,130,255,0.15)" />
-              <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 10 }} />
-              <Radar name="Risk" dataKey="A" stroke="#1d8cff" fill="rgba(29,140,255,0.15)" fillOpacity={1} />
-            </RadarChart>
-          </ResponsiveContainer>
-          <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {radarData.map(d => (
-              <div key={d.subject} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 11, color: 'var(--text-muted)', flex: 1 }}>{d.subject}</span>
-                <div style={{ width: 80, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.08)' }}>
-                  <div style={{ width: `${d.A}%`, height: '100%', borderRadius: 2, background: d.A > 80 ? '#ef4444' : d.A > 65 ? '#f59e0b' : '#1d8cff' }} />
+        <GlassCard style={{ position: 'relative', overflow: 'hidden' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <div>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Zap size={14} style={{ color: '#00e5ff' }} /> Risk Radar Assessment
+              </h3>
+              <p style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 0 }}>Multi-dimensional threat vector heatmap</p>
+            </div>
+            <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: 'rgba(0,229,255,0.1)', color: '#00e5ff', border: '1px solid rgba(0,229,255,0.3)' }}>
+              LIVE RADAR
+            </span>
+          </div>
+
+          <div style={{ position: 'relative', margin: '0 auto' }}>
+            <ResponsiveContainer width="100%" height={240}>
+              <RadarChart data={radarData} outerRadius="75%">
+                <defs>
+                  <radialGradient id="radarGlow" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stopColor="#00e5ff" stopOpacity={0.45} />
+                    <stop offset="70%" stopColor="#1d8cff" stopOpacity={0.2} />
+                    <stop offset="100%" stopColor="#ef4444" stopOpacity={0.05} />
+                  </radialGradient>
+                </defs>
+                <PolarGrid stroke="rgba(0, 229, 255, 0.2)" strokeDasharray="3 3" />
+                <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 600 }} />
+                <Radar name="Threat Vector" dataKey="A" stroke="#00e5ff" strokeWidth={2.5} fill="url(#radarGlow)" fillOpacity={0.85} dot={{ r: 4, fill: '#00e5ff', stroke: '#091527', strokeWidth: 2 }} />
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 7, borderTop: '1px solid var(--border-soft)', paddingTop: 10 }}>
+            {radarData.map(d => {
+              const valColor = d.A >= 80 ? '#ef4444' : d.A >= 60 ? '#f59e0b' : '#22c55e';
+              return (
+                <div key={d.subject} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 11, color: 'var(--text-secondary)', flex: 1, fontWeight: 500 }}>{d.subject}</span>
+                  <div style={{ width: 90, height: 5, borderRadius: 3, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                    <div style={{ width: `${d.A}%`, height: '100%', borderRadius: 3, background: `linear-gradient(90deg, #1d8cff, ${valColor})`, transition: 'width 0.4s' }} />
+                  </div>
+                  <span style={{ fontSize: 11, color: valColor, fontWeight: 800, minWidth: 32, textAlign: 'right', fontFamily: 'monospace' }}>{d.A}/100</span>
                 </div>
-                <span style={{ fontSize: 11, color: d.A > 80 ? '#ef4444' : d.A > 65 ? '#f59e0b' : '#1d8cff', fontWeight: 700, width: 28, textAlign: 'right' }}>{d.A}</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </GlassCard>
       </div>

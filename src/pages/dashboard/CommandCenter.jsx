@@ -450,7 +450,7 @@ export default function CommandCenter() {
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(90,130,255,0.07)" vertical={false} />
               <XAxis dataKey="month" tick={{ fill: '#64748b', fontSize: 10.5 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: '#64748b', fontSize: 10.5 }} domain={[70, 100]} axisLine={false} tickLine={false} tickFormatter={v => `$${v}`} />
+              <YAxis tick={{ fill: '#64748b', fontSize: 10.5 }} domain={['dataMin - 5', 'dataMax + 5']} axisLine={false} tickLine={false} tickFormatter={v => `$${v}`} />
               <Tooltip content={<CustomTooltip />} />
               <Area type="monotone" dataKey="brent" stroke="#1d8cff" strokeWidth={2.5} fill="url(#brentGrad)" dot={false} name="Brent" activeDot={{ r: 5, fill: '#1d8cff', strokeWidth: 2, stroke: '#fff' }} />
               <Area type="monotone" dataKey="indianBasket" stroke="#00e5ff" strokeWidth={2} fill="url(#indianGrad)" dot={false} name="Indian Basket" activeDot={{ r: 5, fill: '#00e5ff', strokeWidth: 2, stroke: '#fff' }} />

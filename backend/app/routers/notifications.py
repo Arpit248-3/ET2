@@ -64,9 +64,16 @@ def mark_notifications_read(payload: dict = {}, db: Session = Depends(get_db)):
     raw = SCENARIO_NOTIFICATIONS.get(scenario_id, DEFAULT_NOTIFICATIONS)
     notif_id = payload.get("id")
 
-    for n in raw:
-        if notif_id is None or n["id"] == notif_id or notif_id == "all":
+    if notif_id == "all" or notif_id is None:
+        for k in SCENARIO_NOTIFICATIONS:
+            for n in SCENARIO_NOTIFICATIONS[k]:
+                n["read"] = True
+        for n in DEFAULT_NOTIFICATIONS:
             n["read"] = True
+    else:
+        for n in raw:
+            if n["id"] == notif_id:
+                n["read"] = True
 
     notifications = [Notification(**n) for n in raw]
     unread = sum(1 for n in notifications if not n.read)

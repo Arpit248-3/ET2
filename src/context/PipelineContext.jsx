@@ -12,6 +12,7 @@ import React, {
 import {
   fetchScenarios,
   fetchPipelineState,
+  fetchNotifications,
   runPipeline as apiRunPipeline,
   uploadScenario as apiUploadScenario,
   advanceDemoStep,
@@ -46,8 +47,18 @@ export function PipelineProvider({ children }) {
     setError(null);
     try {
       const data = await fetchPipelineState();
+      let notifs = null;
+      try {
+        notifs = await fetchNotifications();
+      } catch (e) {
+        console.warn('Could not fetch notifications in pipeline context:', e);
+      }
       if (data) {
-        setPipelineState(data);
+        setPipelineState({
+          ...data,
+          notifications: notifs?.notifications || [],
+          notifications_unread_count: notifs?.unread_count ?? 0,
+        });
         setOffline(!!data.__offline);
       } else {
         const cached = localStorage.getItem('urjanetra_cache_pipeline_state');

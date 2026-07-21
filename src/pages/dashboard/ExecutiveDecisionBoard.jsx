@@ -67,36 +67,79 @@ export default function ExecutiveDecisionBoard() {
   const [modalSubmitting, setModalSubmitting] = useState(false);
 
   // Helper to map DB decision logs to sidebar motions shape
+  const generateDynamicVotes = (id, status, title) => {
+    let hash = 0;
+    const str = `${id}-${title || ''}`;
+    for (let i = 0; i < str.length; i++) {
+      hash = (hash << 5) - hash + str.charCodeAt(i);
+      hash |= 0;
+    }
+    const absHash = Math.abs(hash);
+
+    let forVotes = 4;
+    let againstVotes = 1;
+    let abstainVotes = 0;
+
+    if (status === 'APPROVED') {
+      forVotes = 4 + (absHash % 2); // 4 or 5
+      againstVotes = absHash % 2;   // 0 or 1
+      abstainVotes = Math.max(0, 5 - forVotes - againstVotes);
+    } else if (status === 'REJECTED') {
+      againstVotes = 3 + (absHash % 2); // 3 or 4
+      forVotes = 1;
+      abstainVotes = Math.max(0, 5 - forVotes - againstVotes);
+    } else {
+      abstainVotes = 2 + (absHash % 2);
+      forVotes = 2;
+      againstVotes = Math.max(0, 5 - forVotes - abstainVotes);
+    }
+
+    const memberNames = [
+      { name: 'Arjun Mehta', role: 'Commander', avatar: 'AM' },
+      { name: 'Dr. V. Sinha', role: 'Chief Advisor', avatar: 'VS' },
+      { name: 'Lt. Gen. Sandhu', role: 'Security Chief', avatar: 'RS' },
+      { name: 'M. K. Sharma', role: 'Finance Rep', avatar: 'MS' },
+      { name: 'Sunita Rao', role: 'Petroleum Rep', avatar: 'SR' },
+    ];
+
+    const memberList = memberNames.map((m, idx) => {
+      let vote = 'FOR';
+      if (idx < forVotes) vote = 'FOR';
+      else if (idx < forVotes + againstVotes) vote = 'AGAINST';
+      else vote = 'ABSTAIN';
+      return { ...m, vote };
+    });
+
+    return {
+      votes: { for: forVotes, against: againstVotes, abstain: abstainVotes },
+      members: memberList,
+    };
+  };
+
+  // Helper to map DB decision logs to sidebar motions shape
   const mapDecisionToMotion = (decision) => {
     let statusText = 'APPROVED';
     if (decision.action_type.startsWith('REJECT')) statusText = 'REJECTED';
     if (decision.action_type.startsWith('SIMULATE')) statusText = 'SIMULATION_REQUESTED';
 
     const details = decision.details || {};
+    const motionId = decision.decision_id || `MOT-${Math.floor(Math.random() * 1000)}`;
+    const motionTitle = details.title || decision.action_type;
+    const voteData = generateDynamicVotes(motionId, statusText, motionTitle);
 
     return {
-      id: decision.decision_id || `MOT-${Math.floor(Math.random() * 1000)}`,
-      title: details.title || decision.action_type,
+      id: motionId,
+      title: motionTitle,
       proposedBy: decision.approved_by || 'Secretariat',
       status: statusText,
       urgency: details.urgency || 'MEDIUM',
-      votes: { 
-        for: statusText === 'APPROVED' ? 5 : 1, 
-        against: statusText === 'REJECTED' ? 4 : 1, 
-        abstain: statusText === 'SIMULATION_REQUESTED' ? 3 : 1 
-      },
-      quorum: 6,
+      votes: voteData.votes,
+      quorum: 5,
       deadline: 'Passed',
       summary: details.summary || `Executive action resolved on ${new Date(decision.timestamp || Date.now()).toLocaleString('en-IN')}. Action: ${decision.action_type}`,
       aiRecommendation: details.aiRecommendation || (statusText === 'APPROVED' ? 'APPROVE' : statusText === 'REJECTED' ? 'REJECT' : 'SIMULATE'),
       aiConfidence: details.aiConfidence || 88,
-      members: [
-        { name: 'Arjun Mehta', role: 'Commander', avatar: 'AM', vote: statusText === 'APPROVED' ? 'FOR' : statusText === 'REJECTED' ? 'AGAINST' : 'ABSTAIN' },
-        { name: 'Dr. V. Sinha', role: 'Chief Advisor', avatar: 'VS', vote: 'FOR' },
-        { name: 'Lt. Gen. Sandhu', role: 'Security Chief', avatar: 'RS', vote: statusText === 'APPROVED' ? 'FOR' : 'AGAINST' },
-        { name: 'M. K. Sharma', role: 'Finance Rep', avatar: 'MS', vote: 'FOR' },
-        { name: 'Sunita Rao', role: 'Petroleum Rep', avatar: 'SR', vote: 'FOR' },
-      ],
+      members: voteData.members,
       redTeamCritique: details.redTeamCritique || 'Critique complete. Historical correlation matches simulated mitigation strategies.',
       weakAssumptions: details.weakAssumptions || ['Assumes immediate logistics clearance'],
       ignoredRisks: details.ignoredRisks || ['Freight premium pricing escalations']
@@ -126,34 +169,23 @@ export default function ExecutiveDecisionBoard() {
           activeStatus = 'VOTING';
         }
 
+        const currentId = brief?.brief_id || 'MOT-CURRENT';
+        const currentTitle = brief?.subject || pipelineState.active_scenario?.name || 'Strategic Energy Response Plan';
+        const currentVoteData = generateDynamicVotes(currentId, activeStatus, currentTitle);
+
         current = {
-          id: brief?.brief_id || 'MOT-CURRENT',
-          title: brief?.subject || pipelineState.active_scenario?.name || 'Strategic Energy Response Plan',
+          id: currentId,
+          title: currentTitle,
           proposedBy: brief?.prepared_by || 'AI Copilot / Secretariat',
           status: activeStatus,
           urgency: 'CRITICAL',
-          votes: {
-            for: activeStatus === 'APPROVED' ? 5 : (activeStatus === 'REJECTED' ? 1 : 4),
-            against: activeStatus === 'REJECTED' ? 4 : 1,
-            abstain: activeStatus === 'SIMULATION_REQUESTED' ? 3 : 1,
-          },
-          quorum: 6,
+          votes: currentVoteData.votes,
+          quorum: 5,
           deadline: 'Immediate',
           summary: brief?.decision_required || 'Approve response mix and coordinate strategic reserve (SPR) bridges.',
           aiRecommendation: 'APPROVE',
           aiConfidence: redteam?.confidence_adjusted ? Math.round(redteam.confidence_adjusted * 100) : 96,
-          members: [
-            { 
-              name: 'Arjun Mehta', 
-              role: 'Commander', 
-              avatar: 'AM', 
-              vote: activeStatus === 'APPROVED' ? 'FOR' : (activeStatus === 'REJECTED' ? 'AGAINST' : (activeStatus === 'SIMULATION_REQUESTED' ? 'ABSTAIN' : 'PENDING')) 
-            },
-            { name: 'Dr. V. Sinha', role: 'Chief Advisor', avatar: 'VS', vote: 'FOR' },
-            { name: 'Lt. Gen. Sandhu', role: 'Security Chief', avatar: 'RS', vote: 'FOR' },
-            { name: 'M. K. Sharma', role: 'Finance Rep', avatar: 'MS', vote: 'FOR' },
-            { name: 'Sunita Rao', role: 'Petroleum Rep', avatar: 'SR', vote: 'FOR' },
-          ],
+          members: currentVoteData.members,
           redTeamCritique: redteam?.critique || 'Strategic validation complete. Procurement diversification matches high severity protocols.',
           weakAssumptions: redteam?.weak_assumptions || ['Rerouting window of 14 days is optimistic due to ship availability'],
           ignoredRisks: redteam?.ignored_risks || ['Premium spikes in spot insurance rates']
