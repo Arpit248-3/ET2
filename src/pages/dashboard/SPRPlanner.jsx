@@ -254,14 +254,30 @@ export default function SPRPlanner() {
     }
   });
 
+  // Helper to derive scenario gap & transit duration dynamically
+  const getScenarioParams = () => {
+    const sId = activeScenario?.id;
+    if (sId === 'hormuz_closure') return { gap: 2.4, days: 14 };
+    if (sId === 'opec_cut') return { gap: 1.2, days: 10 };
+    if (sId === 'refinery_fire') return { gap: 0.8, days: 7 };
+    if (sId === 'malacca_blockade') return { gap: 1.8, days: 12 };
+    
+    // Default or custom active scenario
+    const gap = activeScenario?.india_import_gap_mbbl_day ?? 1.5;
+    const days = activeScenario?.maritime_delay_days ?? 10;
+    return { gap, days };
+  };
+
+  const currentParams = getScenarioParams();
+
   // Live SPR plan from backend
   const { data: sprPlan, loading: sprLoading, error: sprError, execute: runPlan } = useApi(planSPR, {
     manual: false,
     fallback: null,
     deps: [activeScenario],
     args: [{
-      daily_gap_mbbl: activeScenario?.india_import_gap_mbbl_day ?? 2.4,
-      days_until_cargo: activeScenario?.id === 'hormuz' ? 22 : activeScenario ? 15 : 22,
+      daily_gap_mbbl: currentParams.gap,
+      days_until_cargo: currentParams.days,
       target_coverage_days: 30
     }],
   });
@@ -283,18 +299,33 @@ export default function SPRPlanner() {
 
   const activePlan = sprCache || sprPlan;
 
-  const handleResetStock = () => {
+  const handleResetStock = async () => {
     localStorage.removeItem('urja_spr_cache');
     setSprCache(null);
+    try {
+      // Fetch nominal baseline reserves
+      const res = await runPlan({
+        daily_gap_mbbl: 0.0,
+        days_until_cargo: 0,
+        target_coverage_days: 30,
+      });
+      if (res) {
+        setSprCache(res);
+        localStorage.setItem('urja_spr_cache', JSON.stringify(res));
+      }
+    } catch {
+      // fallback
+    }
     addToast('Strategic Petroleum Reserve stock levels restored to baseline (23.6 MMT / 64% capacity)', 'success');
   };
 
   const handleOptimizeDrawdown = async () => {
     setOptimizing(true);
     try {
+      const params = getScenarioParams();
       const res = await runPlan({
-        daily_gap_mbbl: activeScenario?.india_import_gap_mbbl_day ?? 1.2,
-        days_until_cargo: 7,
+        daily_gap_mbbl: params.gap,
+        days_until_cargo: params.days,
         target_coverage_days: 30,
       });
       if (res) {
@@ -302,7 +333,7 @@ export default function SPRPlanner() {
         localStorage.setItem('urja_spr_cache', JSON.stringify(res));
       }
       await refreshState();
-      addToast('SPR drawdown plan optimized successfully', 'success');
+      addToast(`SPR drawdown plan optimized for ${activeScenario?.name || 'active scenario'} (${res?.total_drawdown_required_mbbl || (params.gap * params.days).toFixed(1)} MMT allocated)`, 'success');
     } catch (err) {
       addToast('Failed to optimize SPR drawdown: showing cached plan', 'warning');
     } finally {
@@ -350,40 +381,30 @@ export default function SPRPlanner() {
 
   // Generate 5-tank dataset
   const getTanksData = () => {
-    if (!activeScenario) {
-      return [
-        { name: 'Visakhapatnam', capacity: 1.33, current: 1.04, pct: 78, status: 'OPERATIONAL', theme: themes.cyan },
-        { name: 'Mangaluru', capacity: 1.50, current: 1.23, pct: 82, status: 'OPERATIONAL', theme: themes.teal },
-        { name: 'Padur', capacity: 2.50, current: 1.60, pct: 64, status: 'MAINTENANCE', theme: themes.purple },
-        { name: 'Chandikhole', capacity: 4.00, current: 2.84, pct: 71, status: 'OPERATIONAL', theme: themes.orange },
-        { name: 'Total India SPR', capacity: 9.33, current: 6.71, pct: 72, status: 'OPERATIONAL', theme: themes.blue }
-      ];
-    }
-
     const activeSites = activePlan?.sites || fallbackPlan.sites;
     const v = activeSites.find(s => s.name.toLowerCase().includes('visa')) || { capacity_mbbl: 13.3, current_stock_mbbl: 8.9, status: 'OPERATIONAL' };
     const m = activeSites.find(s => s.name.toLowerCase().includes('manga')) || { capacity_mbbl: 11.5, current_stock_mbbl: 7.8, status: 'OPERATIONAL' };
     const p = activeSites.find(s => s.name.toLowerCase().includes('padur')) || { capacity_mbbl: 12.0, current_stock_mbbl: 6.9, status: 'MAINTENANCE' };
 
-    const vCap = 1.33;
-    const vPct = v.capacity_mbbl > 0 ? (v.current_stock_mbbl / v.capacity_mbbl) * 100 : 78;
-    const vCurrent = vCap * (vPct / 100);
+    const vCap = v.capacity_mbbl || 13.3;
+    const vCurrent = v.current_stock_mbbl ?? 8.9;
+    const vPct = vCap > 0 ? (vCurrent / vCap) * 100 : 66.9;
 
-    const mCap = 1.50;
-    const mPct = m.capacity_mbbl > 0 ? (m.current_stock_mbbl / m.capacity_mbbl) * 100 : 82;
-    const mCurrent = mCap * (mPct / 100);
+    const mCap = m.capacity_mbbl || 11.5;
+    const mCurrent = m.current_stock_mbbl ?? 7.8;
+    const mPct = mCap > 0 ? (mCurrent / mCap) * 100 : 67.8;
 
-    const pCap = 2.50;
-    const pPct = p.capacity_mbbl > 0 ? (p.current_stock_mbbl / p.capacity_mbbl) * 100 : 64;
-    const pCurrent = pCap * (pPct / 100);
+    const pCap = p.capacity_mbbl || 12.0;
+    const pCurrent = p.current_stock_mbbl ?? 6.9;
+    const pPct = pCap > 0 ? (pCurrent / pCap) * 100 : 57.5;
 
-    const cCap = 4.00;
-    const cPct = Math.round((vPct + mPct + pPct) / 3);
-    const cCurrent = cCap * (cPct / 100);
+    const cCap = 4.0;
+    const cCurrent = 2.8;
+    const cPct = 70.0;
 
     const tCap = vCap + mCap + pCap + cCap;
     const tCurrent = vCurrent + mCurrent + pCurrent + cCurrent;
-    const tPct = tCap > 0 ? (tCurrent / tCap) * 100 : 72;
+    const tPct = tCap > 0 ? (tCurrent / tCap) * 100 : 64.0;
 
     return [
       { name: 'Visakhapatnam', capacity: vCap, current: vCurrent, pct: vPct, status: v.status || 'OPERATIONAL', theme: themes.cyan },
