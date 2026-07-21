@@ -940,3 +940,43 @@ def update_general_settings(request: GeneralSettingsRequest, db: Session = Depen
         "updated_settings": request.dict(exclude_none=True),
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
+
+
+# ─── 12. Profile Management ─────────────────────────────────────────────
+PROFILE_STORE = {
+    "name": "Arjun Mehta",
+    "email": "arjun.mehta@nemc.gov.in",
+    "role": "Commander",
+    "department": "National Energy Management Council",
+    "location": "New Delhi, India",
+    "phone": "+91 98100 00001",
+    "clearance": "TOP SECRET",
+    "bio": "Commander at NEMC with 18 years of experience in energy policy, crisis management, and strategic reserves planning.",
+    "preferences": {
+        "theme": "dark",
+        "notifications_enabled": True
+    }
+}
+
+@router.get("/profile")
+def get_user_profile(db: Session = Depends(get_db)):
+    return PROFILE_STORE
+
+@router.post("/profile")
+def update_user_profile(payload: dict, db: Session = Depends(get_db)):
+    PROFILE_STORE.update(payload)
+    create_audit_entry(
+        db=db,
+        user=PROFILE_STORE["name"],
+        action="Updated User Profile Details",
+        module="Profile Workspace",
+        event_type="USER",
+        details=payload
+    )
+    return {
+        "success": True,
+        "profile": PROFILE_STORE,
+        "message": "Profile updated successfully",
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+

@@ -8,6 +8,7 @@ import {
   Globe, Command, LogOut, Home, ChevronsLeft, ChevronsRight, Zap, PlayCircle,
 } from 'lucide-react';
 import Logo from '../ui/Logo.jsx';
+import { useScenario } from '../../context/ScenarioContext.jsx';
 
 const navSections = [
   {
@@ -66,6 +67,10 @@ const navSections = [
 export default function Sidebar({ crisisMode = false }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { pipelineState } = useScenario();
+  const unreadNotifCount = pipelineState?.notifications
+    ? pipelineState.notifications.filter(n => !n.read).length
+    : (pipelineState?.kpi?.active_incidents ?? 0);
   const [collapsed, setCollapsed] = useState({});
   const [minimized, setMinimized] = useState(window.innerWidth <= 1024);
 
@@ -244,11 +249,14 @@ export default function Sidebar({ crisisMode = false }) {
                     >
                       <Icon size={14} />
                       <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.label}</span>
-                      {item.badge && (
-                        <span style={{ background: '#ef4444', color: 'white', borderRadius: 10, padding: '1px 6px', fontSize: 9.5, fontWeight: 700, lineHeight: 1.6 }}>
-                          {item.badge}
-                        </span>
-                      )}
+                      {(() => {
+                        const badgeVal = item.path === '/notifications' ? (unreadNotifCount > 0 ? unreadNotifCount : null) : item.badge;
+                        return badgeVal ? (
+                          <span style={{ background: '#ef4444', color: 'white', borderRadius: 10, padding: '1px 6px', fontSize: 9.5, fontWeight: 700, lineHeight: 1.6 }}>
+                            {badgeVal}
+                          </span>
+                        ) : null;
+                      })()}
                     </div>
                   );
                 })}

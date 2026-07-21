@@ -6,6 +6,7 @@ import PageHeader from '../../components/ui/PageHeader.jsx';
 import useApi from '../../hooks/useApi.js';
 import { fetchAuditLogs } from '../../services/api.js';
 import { useScenario } from '../../context/ScenarioContext.jsx';
+import { useToast } from '../../components/ui/Toast.jsx';
 
 const severityColor = { HIGH: '#ef4444', MEDIUM: '#f59e0b', LOW: '#1d8cff', INFO: '#22c55e' };
 const actionColor = { APPROVED: '#22c55e', GENERATED: '#8b5cf6', VOTED: '#1d8cff', EXPORTED: '#f59e0b', TRIGGERED: '#ef4444', ACCESSED: '#00e5ff', LOGIN: '#22c55e', LOGGED: '#94a3b8' };
@@ -19,7 +20,6 @@ const parseTime = (timeStr) => {
       return timeStr;
     }
   }
-  // If it's already a time-only format (e.g. HH:MM:SS), return as-is to avoid new Date() crashes
   return timeStr;
 };
 
@@ -37,6 +37,7 @@ const parseDate = (timeStr) => {
 
 export default function AuditLogs() {
   const { backendOnline } = useScenario();
+  const { addToast } = useToast();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('All');
   const categories = ['All', 'Decision', 'AI', 'Data Access', 'System', 'Auth'];
@@ -71,6 +72,35 @@ export default function AuditLogs() {
     .filter(l => filter === 'All' || l.category === filter)
     .filter(l => !search || l.user.toLowerCase().includes(search.toLowerCase()) || l.resource.toLowerCase().includes(search.toLowerCase()) || l.action.toLowerCase().includes(search.toLowerCase()));
 
+  const handleExportLogs = () => {
+    try {
+      const headers = ['Log ID', 'User', 'Role', 'Action', 'Resource', 'Category', 'IP Address', 'Time', 'Date', 'Severity'];
+      const rows = filtered.map(l => [
+        l.id, `"${l.user}"`, `"${l.role}"`, `"${l.action}"`, `"${l.resource}"`, `"${l.category}"`, l.ip, l.time, l.date, l.severity
+      ]);
+      const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', `urjanetra_audit_trail_${new Date().toISOString().slice(0,10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      addToast(`Exported ${filtered.length} audit log entries as CSV`, 'success');
+    } catch (err) {
+      addToast('Failed to export audit logs', 'error');
+    }
+  };
+
+  const handleRefreshLogs = async () => {
+    try {
+      await refetchLogs();
+      addToast('Audit log ledger refreshed', 'success');
+    } catch (err) {
+      addToast('Failed to refresh audit logs', 'error');
+    }
+  };
+
   // Safe empty offline view if no cache is available and offline
   if (displayLogs.length === 0 && !backendOnline) {
     return (
@@ -86,33 +116,15 @@ export default function AuditLogs() {
 
   return (
     <DashboardLayout>
-      {!backendOnline && (
-        <div style={{
-          background: 'rgba(245,158,11,0.08)',
-          border: '1px solid rgba(245,158,11,0.25)',
-          borderRadius: 8,
-          padding: '10px 16px',
-          marginBottom: 16,
-          fontSize: 12,
-          color: '#f59e0b',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8
-        }}>
-          <WifiOff size={14} />
-          <span>Showing last known intelligence state (Offline)</span>
-        </div>
-      )}
-
       <PageHeader title="Audit Logs" subtitle="Immutable record of all platform actions, AI decisions, and user access events"
         badge={{ label: 'TAMPER-PROOF', color: '#22c55e' }}
         actions={
           <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn btn-secondary" onClick={() => { refetchLogs(); }} disabled={logsLoading}>
+            <button className="btn btn-secondary" onClick={handleRefreshLogs} disabled={logsLoading}>
               {logsLoading ? <Loader size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <RefreshCw size={13} />}
               {' '}Refresh Logs
             </button>
-            <button className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+            <button className="btn btn-secondary" onClick={handleExportLogs} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
               <Download size={13} />Export Logs
             </button>
           </div>

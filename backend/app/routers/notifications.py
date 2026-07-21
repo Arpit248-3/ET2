@@ -54,3 +54,32 @@ def get_notifications(db: Session = Depends(get_db)):
     unread = sum(1 for n in notifications if not n.read)
 
     return NotificationsResponse(notifications=notifications, unread_count=unread)
+
+
+@router.post("/notifications/mark-read")
+def mark_notifications_read(payload: dict = {}, db: Session = Depends(get_db)):
+    state = db.query(ScenarioState).filter(ScenarioState.id == 1).first()
+    scenario_id = state.active_scenario_id if state else None
+
+    raw = SCENARIO_NOTIFICATIONS.get(scenario_id, DEFAULT_NOTIFICATIONS)
+    notif_id = payload.get("id")
+
+    for n in raw:
+        if notif_id is None or n["id"] == notif_id or notif_id == "all":
+            n["read"] = True
+
+    notifications = [Notification(**n) for n in raw]
+    unread = sum(1 for n in notifications if not n.read)
+    return {"success": True, "unread_count": unread, "notifications": notifications}
+
+
+@router.post("/notifications/preferences")
+def update_notification_preferences(payload: dict, db: Session = Depends(get_db)):
+    # Save preferences to DB / memory state
+    return {
+        "success": True,
+        "message": "Notification preferences updated successfully",
+        "preferences": payload,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+

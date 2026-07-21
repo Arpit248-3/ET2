@@ -3,7 +3,7 @@ import { User, Shield, Edit, Save, Key, Bell, Clock, Activity, RefreshCw, AlertT
 import DashboardLayout from '../../components/layout/DashboardLayout.jsx';
 import GlassCard from '../../components/ui/GlassCard.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
-import { fetchProfile, updateProfilePreferences } from '../../services/api.js';
+import { fetchProfile, updateProfile, updateProfilePreferences } from '../../services/api.js';
 import { useToast } from '../../components/ui/Toast.jsx';
 import { useScenario } from '../../context/ScenarioContext.jsx';
 
@@ -33,24 +33,28 @@ export default function Profile() {
     setLoading(true);
     try {
       const data = await fetchProfile();
-      setProfile({
-        name: data.name,
-        email: data.email,
-        phone: '+91 98100 00001',
-        dept: data.role === 'Commander' ? 'National Energy Management Council' : 'Operations',
-        location: 'New Delhi, India',
-        bio: 'Commander at NEMC with 18 years of experience in energy policy, crisis management, and strategic reserves planning.'
-      });
-      setForm({
-        name: data.name,
-        email: data.email,
-        phone: '+91 98100 00001',
-        dept: data.role === 'Commander' ? 'National Energy Management Council' : 'Operations',
-        location: 'New Delhi, India',
-        bio: 'Commander at NEMC with 18 years of experience in energy policy, crisis management, and strategic reserves planning.'
-      });
-      if (data.preferences) {
-        setPreferences(data.preferences);
+      if (data) {
+        setProfile(prev => ({
+          ...prev,
+          name: data.name || prev.name,
+          email: data.email || prev.email,
+          phone: data.phone || prev.phone,
+          dept: data.department || prev.dept,
+          location: data.location || prev.location,
+          bio: data.bio || prev.bio,
+        }));
+        setForm(prev => ({
+          ...prev,
+          name: data.name || prev.name,
+          email: data.email || prev.email,
+          phone: data.phone || prev.phone,
+          dept: data.department || prev.dept,
+          location: data.location || prev.location,
+          bio: data.bio || prev.bio,
+        }));
+        if (data.preferences) {
+          setPreferences(data.preferences);
+        }
       }
     } catch (err) {
       console.warn('Profile API offline, using cached fallback:', err);
@@ -66,17 +70,26 @@ export default function Profile() {
         ...preferences,
         notifications_enabled: nextVal
       });
-      setPreferences(updated);
+      setPreferences(updated?.preferences || { ...preferences, notifications_enabled: nextVal });
       addToast(`Notification setting updated to ${nextVal ? 'ON' : 'OFF'}`, 'success');
     } catch (err) {
       addToast('Failed to update preferences', 'error');
     }
   };
 
-  const save = () => {
+  const save = async () => {
     setProfile({ ...form });
     setEditing(false);
-    addToast('Profile info updated locally', 'success');
+    try {
+      if (backendOnline) {
+        await updateProfile(form);
+        addToast('Profile updated on backend successfully', 'success');
+      } else {
+        addToast('Profile info updated locally', 'success');
+      }
+    } catch (err) {
+      addToast('Profile saved locally', 'info');
+    }
   };
 
   useEffect(() => {

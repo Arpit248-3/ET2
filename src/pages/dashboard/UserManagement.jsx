@@ -227,9 +227,23 @@ export default function UserManagement() {
                     <div style={{ fontSize: 10, color: 'var(--text-dim)' }}>{user.dept}</div>
                   </td>
                   <td style={{ padding: '12px 16px' }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 4, background: `${clearanceColors[user.clearance] || '#1d8cff'}18`, color: clearanceColors[user.clearance] || '#1d8cff', border: `1px solid ${clearanceColors[user.clearance] || '#1d8cff'}30` }}>
-                      <Shield size={9} style={{ marginRight: 4, verticalAlign: 'middle' }} />{user.clearance}
-                    </span>
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 5,
+                      padding: '4px 10px',
+                      borderRadius: 6,
+                      fontSize: 10,
+                      fontWeight: 800,
+                      letterSpacing: '0.04em',
+                      lineHeight: 1.2,
+                      background: user.clearance === 'TOP SECRET' ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)',
+                      color: user.clearance === 'TOP SECRET' ? '#ef4444' : '#f59e0b',
+                      border: `1px solid ${user.clearance === 'TOP SECRET' ? 'rgba(239,68,68,0.3)' : 'rgba(245,158,11,0.3)'}`
+                    }}>
+                      <Shield size={11} style={{ flexShrink: 0 }} />
+                      <span>{user.clearance}</span>
+                    </div>
                   </td>
                   <td style={{ padding: '12px 16px', fontSize: 11, color: 'var(--text-secondary)' }}>{user.lastLogin}</td>
                   <td style={{ padding: '12px 16px' }}>

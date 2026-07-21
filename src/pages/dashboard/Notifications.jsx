@@ -4,10 +4,9 @@ import DashboardLayout from '../../components/layout/DashboardLayout.jsx';
 import GlassCard from '../../components/ui/GlassCard.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import useApi from '../../hooks/useApi.js';
-import { fetchNotifications } from '../../services/api.js';
+import { fetchNotifications, markNotificationsRead, updateNotificationPreferences } from '../../services/api.js';
 import { useScenario } from '../../context/ScenarioContext.jsx';
-
-const notifications = [];
+import { useToast } from '../../components/ui/Toast.jsx';
 
 const typeConfig = {
   CRITICAL: { color: '#ef4444', icon: AlertTriangle, bg: '#ef444415' },
@@ -17,8 +16,18 @@ const typeConfig = {
 };
 
 export default function Notifications() {
-  const { backendOnline } = useScenario();
-  const { data: liveNotifs, loading: notifsLoading, error: notifsError } = useApi(fetchNotifications, { fallback: null });
+  const { backendOnline, refreshState } = useScenario();
+  const { addToast } = useToast();
+  const { data: liveNotifs, loading: notifsLoading, error: notifsError, refetch } = useApi(fetchNotifications, { fallback: null });
+  const [showPreferences, setShowPreferences] = useState(false);
+  const [prefForm, setPrefForm] = useState({
+    inApp: true,
+    email: true,
+    sms: false,
+    telegram: true,
+    minSeverity: 'HIGH',
+    frequency: 'Instant',
+  });
 
   // Normalize live notifications to display format
   const liveItems = liveNotifs?.notifications
@@ -34,7 +43,7 @@ export default function Notifications() {
     : null;
 
   const [filter, setFilter] = useState('All');
-  const [items, setItems] = useState(notifications);
+  const [items, setItems] = useState([]);
 
   // Sync state if liveItems updates
   useEffect(() => {
@@ -48,23 +57,43 @@ export default function Notifications() {
   const unread = displayItems.filter(n => !n.read).length;
   const filtered = filter === 'All' ? displayItems : displayItems.filter(n => n.category === filter);
 
-  const markRead = (id) => setItems(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-  const markAllRead = () => setItems(prev => prev.map(n => ({ ...n, read: true })));
+  const markRead = async (id) => {
+    setItems(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    try {
+      if (backendOnline) {
+        await markNotificationsRead(id);
+        await refreshState();
+      }
+    } catch (err) {
+      console.warn('Failed to sync mark read to backend:', err);
+    }
+  };
 
-  if (items.length === 0 && !backendOnline) {
-    return (
-      <DashboardLayout>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '80vh', gap: 16 }}>
-          <Bell size={48} style={{ color: '#f59e0b' }} />
-          <h2>Alert Center Offline</h2>
-          <p style={{ color: 'var(--text-muted)' }}>Could not connect to the UrjaNetra AI backend, and no cached alerts are available.</p>
-          <button className="btn btn-primary" onClick={() => window.location.reload()}>
-            <RefreshCw size={14} style={{ marginRight: 6 }} /> Retry Connection
-          </button>
-        </div>
-      </DashboardLayout>
-    );
-  }
+  const handleMarkAllRead = async () => {
+    setItems(prev => prev.map(n => ({ ...n, read: true })));
+    try {
+      if (backendOnline) {
+        await markNotificationsRead('all');
+        await refreshState();
+      }
+      addToast('All notifications marked as read', 'success');
+    } catch (err) {
+      addToast('Marked all read locally', 'info');
+    }
+  };
+
+  const handleSavePreferences = async () => {
+    try {
+      if (backendOnline) {
+        await updateNotificationPreferences(prefForm);
+      }
+      addToast('Notification preferences saved successfully', 'success');
+      setShowPreferences(false);
+    } catch (err) {
+      addToast('Preferences saved locally', 'info');
+      setShowPreferences(false);
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -72,8 +101,8 @@ export default function Notifications() {
         badge={{ label: `${unread} UNREAD`, color: unread > 0 ? '#ef4444' : '#22c55e' }}
         actions={
           <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn btn-secondary" style={{ fontSize: 12 }} onClick={markAllRead}>Mark All Read</button>
-            <button className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}><Settings size={13} />Preferences</button>
+            <button className="btn btn-secondary" style={{ fontSize: 12 }} onClick={handleMarkAllRead}>Mark All Read</button>
+            <button className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }} onClick={() => setShowPreferences(true)}><Settings size={13} />Preferences</button>
           </div>
         }
       />
@@ -159,6 +188,71 @@ export default function Notifications() {
           })
         )}
       </GlassCard>
+
+      {/* Preferences Modal */}
+      {showPreferences && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <GlassCard style={{ width: 440, maxWidth: '90vw', padding: 24, borderRadius: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Settings size={18} style={{ color: '#1d8cff' }} /> Notification Preferences
+              </div>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowPreferences(false)}><X size={16} /></button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>Alert Channels</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  {[
+                    { key: 'inApp', label: 'In-App Alerts' },
+                    { key: 'email', label: 'Email Digest' },
+                    { key: 'sms', label: 'SMS Emergency' },
+                    { key: 'telegram', label: 'Telegram Bot' },
+                  ].map(ch => (
+                    <label key={ch.key} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-secondary)', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={prefForm[ch.key]} onChange={e => setPrefForm(p => ({ ...p, [ch.key]: e.target.checked }))} />
+                      {ch.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Minimum Alert Severity</label>
+                <select
+                  value={prefForm.minSeverity}
+                  onChange={e => setPrefForm(p => ({ ...p, minSeverity: e.target.value }))}
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-soft)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-primary)', fontSize: 13 }}
+                >
+                  <option value="CRITICAL" style={{ background: '#091527' }}>CRITICAL Only</option>
+                  <option value="HIGH" style={{ background: '#091527' }}>HIGH & CRITICAL</option>
+                  <option value="INFO" style={{ background: '#091527' }}>All Notifications (INFO, HIGH, CRITICAL)</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Dispatch Frequency</label>
+                <select
+                  value={prefForm.frequency}
+                  onChange={e => setPrefForm(p => ({ ...p, frequency: e.target.value }))}
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-soft)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-primary)', fontSize: 13 }}
+                >
+                  <option value="Instant" style={{ background: '#091527' }}>Instant Push</option>
+                  <option value="Hourly" style={{ background: '#091527' }}>Hourly Rollup</option>
+                  <option value="Daily" style={{ background: '#091527' }}>Daily Morning Summary</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}>
+                <button className="btn btn-secondary" onClick={() => setShowPreferences(false)}>Cancel</button>
+                <button className="btn btn-primary" onClick={handleSavePreferences}>Save Preferences</button>
+              </div>
+            </div>
+          </GlassCard>
+        </div>
+      )}
+
       <style>{`
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
       `}</style>

@@ -234,6 +234,22 @@ export const fetchNotifications = async () => {
   return adaptNotifications(data);
 };
 
+export const markNotificationsRead = async (id = 'all') => {
+  const data = await apiFetch('/notifications/mark-read', {
+    method: 'POST',
+    body: JSON.stringify({ id }),
+  });
+  return adaptNotifications(data);
+};
+
+export const updateNotificationPreferences = async (preferences) => {
+  return apiFetch('/notifications/preferences', {
+    method: 'POST',
+    body: JSON.stringify(preferences),
+  });
+};
+
+
 // ─── Timeline ──────────────────────────────────────────────────────────────
 export const fetchTimeline = async () => {
   const data = await apiFetch('/timeline');
@@ -276,7 +292,6 @@ export const triggerDemoStep = async (stepIdx) => {
   return adaptDemoMode(data);
 };
 
-// ─── Supply Chain Digital Twin ─────────────────────────────────────────────
 export const fetchSupplyChainTwin = () => apiFetch('/supply-chain-twin');
 
 // ─── Refinery Compatibility ────────────────────────────────────────────────
@@ -339,11 +354,17 @@ export const recordCollabApproval = (payload) =>
 
 // ─── User Profile Preferences ──────────────────────────────────────────────
 export const fetchProfile = () => apiFetch('/profile');
-export const updateProfilePreferences = (payload) =>
-  apiFetch('/profile/preferences', {
-    method: 'PUT',
+export const updateProfile = (payload) =>
+  apiFetch('/profile', {
+    method: 'POST',
     body: JSON.stringify(payload),
   });
+export const updateProfilePreferences = (payload) =>
+  apiFetch('/profile', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+
 
 // ─── Help Center ──────────────────────────────────────────────────────────
 export const fetchHelpCenter = (query = '') =>
