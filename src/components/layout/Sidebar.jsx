@@ -12,6 +12,7 @@ import Logo from '../ui/Logo.jsx';
 import { useScenario } from '../../context/ScenarioContext.jsx';
 import useApi from '../../hooks/useApi.js';
 import { fetchNotifications } from '../../services/api.js';
+import { useAuth } from '../../context/AuthContext.jsx';
 
 const navSections = [
   {
@@ -66,8 +67,6 @@ const navSections = [
     ]
   },
 ];
-
-import { useAuth } from '../../context/AuthContext.jsx';
 
 export default function Sidebar({ crisisMode = false }) {
   const navigate = useNavigate();
