@@ -637,7 +637,7 @@ export default function MapPanel({
         });
       }
     });
-  }, [nodes, activeLayers, filterType, ships, approvedRouteState]);terType, ships]);
+  }, [nodes, activeLayers, filterType, ships, approvedRouteState]);
 
   const displayNodesCount = nodes ? nodes.length : energyNodes.length;
 

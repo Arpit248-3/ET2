@@ -237,18 +237,35 @@ export default function ProcurementOptimizer() {
     addToast('RFQ exported and downloaded', 'success');
   };
 
+  const handleApprove = async () => {
+    setApproving(true);
+    try {
+      if (backendOnline) {
+        await recordDecision({
+          action_type: 'APPROVE_PROCUREMENT_PLAN',
+          approved_by: 'Commander Arjun Mehta',
+          scenario_id: activeScenario?.id || 'baseline',
+          details: activeData || { message: 'Approved procurement recommendation plan' },
+        });
+      }
+      await refreshState();
+      addToast('Procurement plan approved and sent to Cabinet', 'success');
+    } catch { addToast('Failed to record approval', 'error'); }
+    finally { setApproving(false); }
+  };
+
   const handleApproveSpecificRoute = async (sup) => {
     setApproving(true);
     const targetSup = sup || selectedRow || displaySuppliers[0];
-    const routeId = (targetSup.route || '').toLowerCase().includes('cape') ? 'cape_of_good_hope' : ((targetSup.route || '').toLowerCase().includes('atlantic') ? 'atlantic_corridor' : 'hormuz_corridor');
+    const routeId = (targetSup?.route || '').toLowerCase().includes('cape') ? 'cape_of_good_hope' : ((targetSup?.route || '').toLowerCase().includes('atlantic') ? 'atlantic_corridor' : 'hormuz_corridor');
     const payload = {
       route_id: routeId,
-      route_name: `${targetSup.route} (${targetSup.supplier} Corridor)`,
-      supplier: targetSup.supplier,
+      route_name: `${targetSup?.route} (${targetSup?.supplier} Corridor)`,
+      supplier: targetSup?.supplier,
       destination_port: 'Jamnagar / Vadinar Terminal',
-      eta_days: parseInt(targetSup.eta) || 22,
-      landed_cost: targetSup.landedCost || '$84.2/bbl',
-      risk_score: targetSup.riskScore || 18,
+      eta_days: parseInt(targetSup?.eta) || 22,
+      landed_cost: targetSup?.landedCost || '$84.2/bbl',
+      risk_score: targetSup?.riskScore || 18,
       approved_by: 'Commander Arjun Mehta, NEMC'
     };
 
@@ -277,75 +294,6 @@ export default function ProcurementOptimizer() {
   const displayRisk      = activeData?.risk_summary || '—';
   const displayOptFor    = (activeData?.optimized_for || 'Cost-Risk Balance').replace(/_/g, ' ');
 
-  return (
-    <DashboardLayout>
-      <PageHeader
-        title="Procurement Optimizer"
-        subtitle="AI-ranked crude supplier options · Landed cost & geopolitical risk analysis"
-        badge={<StatusBadge status={activeScenario ? "SCENARIO ACTIVE" : "NOMINAL"} />}
-        actions={
-          <>
-            <button className="btn btn-secondary btn-sm" onClick={handleExportRFQ}>
-              <Download size={13} style={{ marginRight: 6 }} /> Export RFQ
-            </button>
-            <button className="btn btn-secondary btn-sm" onClick={handleGenerateNote}>
-              <FileText size={13} style={{ marginRight: 6 }} /> Download Note
-            </button>
-            <button className="btn btn-primary btn-sm" onClick={() => handleOptimize(false)} disabled={optimizing}>
-              {optimizing ? <Loader size={13} className="animate-spin" /> : <ShoppingCart size={13} style={{ marginRight: 6 }} />} Re-Optimize Mix
-            </button>
-          </>
-        }
-      />
-
-      {/* Selected Supplier Detail with hover tooltips & Route Approval Action */}
-      {selectedRow && (
-        <GlassCard style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
-            <div>
-              <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>Selected Supplier: {selectedRow.supplier}</h3>
-              <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>Corridor: <b style={{ color: '#00e5ff' }}>{selectedRow.route}</b> (ETA: {selectedRow.eta})</span>
-            </div>
-            <button
-              className="btn btn-success btn-sm"
-              onClick={() => handleApproveSpecificRoute(selectedRow)}
-              disabled={approving}
-              style={{ background: '#22c55e', borderColor: '#22c55e', color: '#000', fontWeight: 800 }}
-            >
-              {approving ? <Loader size={13} className="animate-spin" /> : <CheckCircle size={13} style={{ marginRight: 6 }} />}
-              Approve & Activate Route: {selectedRow.route}
-            </button>
-          </div>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))', gap:12 }}>
-            {[
-              { label:'Route',         val: selectedRow.route },
-              { label:'ETA',           val: selectedRow.eta },
-              { label:'Landed Cost',   val: selectedRow.landedCost },
-              { label:'Risk Score',    val: `${selectedRow.riskScore}/100` },
-              { label:'Compatibility', val: `${selectedRow.compatibility}%` },
-              { label:'Sanctions',     val: selectedRow.sanctions },
-              { label:'Availability',  val: selectedRow.availability },
-              { label:'Verdict',       val: selectedRow.verdict },
-            ].map(d => (
-              <TooltipCard key={d.label} label={d.label} val={d.val} desc={DETAIL_DESCRIPTIONS[d.label] || ''} />
-            ))}
-          </div>
-          {selectedRow.scoreBreakdown && (
-            <div style={{ marginTop:14, padding:'10px 14px', background:'rgba(255,255,255,0.02)', borderRadius:8, border:'1px solid var(--border-soft)' }}>
-              <div style={{ fontSize:11, color:'var(--text-dim)', marginBottom:8, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em' }}>Score Breakdown</div>
-              <div style={{ display:'flex', flexWrap:'wrap', gap:10 }}>
-                {Object.entries(selectedRow.scoreBreakdown).map(([k, v]) => (
-                  <div key={k} style={{ fontSize:11, color:'var(--text-muted)' }}>
-                    <span style={{ color:'var(--text-dim)' }}>{k.replace(/_/g,' ')}: </span>
-                    <span style={{ color:'#60b4ff', fontWeight:600 }}>{v}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </GlassCard>
-      )}
-
   if (!activeData && !backendOnline) return (
     <DashboardLayout>
       <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'80vh', gap:16 }}>
@@ -366,6 +314,7 @@ export default function ProcurementOptimizer() {
       )}
 
       <PageHeader title="Procurement Optimizer" subtitle="Multi-supplier comparison · Route analysis · AI-recommended sourcing strategy"
+        badge={<StatusBadge status={activeScenario ? "SCENARIO ACTIVE" : "NOMINAL"} />}
         actions={<>
           <button className="btn btn-ghost btn-sm" onClick={handleGenerateNote}><FileText size={13} /> Generate Note</button>
           <button className="btn btn-ghost btn-sm" onClick={handleExportRFQ}><Download size={13} /> Export RFQ</button>
@@ -377,6 +326,27 @@ export default function ProcurementOptimizer() {
           </button>
         </>}
       />
+
+      {/* Selected Supplier Detail Banner with Route Approval Button */}
+      {selectedRow && (
+        <GlassCard style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>Active Selection: {selectedRow.supplier}</h3>
+              <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>Corridor: <b style={{ color: '#00e5ff' }}>{selectedRow.route}</b> (ETA: {selectedRow.eta})</span>
+            </div>
+            <button
+              className="btn btn-success btn-sm"
+              onClick={() => handleApproveSpecificRoute(selectedRow)}
+              disabled={approving}
+              style={{ background: '#22c55e', borderColor: '#22c55e', color: '#000', fontWeight: 800 }}
+            >
+              {approving ? <Loader size={13} className="animate-spin" /> : <CheckCircle size={13} style={{ marginRight: 6 }} />}
+              Approve & Activate Route: {selectedRow.route}
+            </button>
+          </div>
+        </GlassCard>
+      )}
 
       {(procLoading || optimizing) && (
         <div style={{ background:'rgba(29,140,255,0.1)', border:'1px solid rgba(29,140,255,0.2)', color:'#1d8cff', padding:'10px 16px', borderRadius:8, marginBottom:14, display:'flex', alignItems:'center', gap:8, fontSize:13 }}>
