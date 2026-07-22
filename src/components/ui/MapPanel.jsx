@@ -114,46 +114,6 @@ function createShipIcon(isLight) {
   `;
 }
 
-// Catmull-Rom Spline Curve Interpolation for Smooth Nautical Sea Arcs
-function generateCurvedPath(waypoints, numPointsPerSegment = 8) {
-  if (!waypoints || waypoints.length < 2) return waypoints || [];
-  
-  const getCatmullRomPoint = (p0, p1, p2, p3, t) => {
-    const t2 = t * t;
-    const t3 = t2 * t;
-    const lat = 0.5 * (
-      (2 * p1[0]) +
-      (-p0[0] + p2[0]) * t +
-      (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * t2 +
-      (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * t3
-    );
-    const lng = 0.5 * (
-      (2 * p1[1]) +
-      (-p0[1] + p2[1]) * t +
-      (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * t2 +
-      (-p0[1] + 3 * p1[1] - 3 * p2[0] + p3[0]) * t3
-    );
-    return [lat, lng];
-  };
-
-  const curved = [];
-  const len = waypoints.length;
-  
-  for (let i = 0; i < len - 1; i++) {
-    const p0 = waypoints[Math.max(0, i - 1)];
-    const p1 = waypoints[i];
-    const p2 = waypoints[i + 1];
-    const p3 = waypoints[Math.min(len - 1, i + 2)];
-
-    for (let step = 0; step < numPointsPerSegment; step++) {
-      const t = step / numPointsPerSegment;
-      curved.push(getCatmullRomPoint(p0, p1, p2, p3, t));
-    }
-  }
-  curved.push(waypoints[len - 1]);
-  return curved;
-}
-
 function interpolatePath(points, t) {
   if (!points || points.length === 0) return null;
   if (points.length === 1) return points[0];
@@ -645,26 +605,23 @@ export default function MapPanel({
         activeColor = '#22c55e';
       }
 
-      const rawWaypoints = ALL_MARITIME_ROUTES[activeRouteKey];
-      const activeRouteWaypoints = generateCurvedPath(rawWaypoints, 10);
-      const hormuzCurvedWaypoints = generateCurvedPath(ALL_MARITIME_ROUTES.saudi_hormuz, 8);
+      const activeRouteWaypoints = ALL_MARITIME_ROUTES[activeRouteKey];
 
-      // Draw Sea Routes with sleek, delicate mini-dots and natural nautical curves
+      // Draw Sea Routes
       if (layers.ships) {
         // Base glow polyline for active route
-        const active_base = L.polyline(activeRouteWaypoints, { color: activeColor, weight: 4.0, opacity: 0.18 }).addTo(leafletMapRef.current);
+        const active_base = L.polyline(activeRouteWaypoints, { color: activeColor, weight: 6, opacity: 0.25 }).addTo(leafletMapRef.current);
         polylinesRef.current.push(active_base);
 
-        // Ultra-sleek, delicate animated mini-dots
-        const active_flow = L.polyline(activeRouteWaypoints, { color: activeColor, weight: 1.5, dashArray: '2, 5', className: 'urja-approved-sea-flow', opacity: 0.95 }).addTo(leafletMapRef.current);
+        // Active flow line for active route
+        const active_flow = L.polyline(activeRouteWaypoints, { color: activeColor, weight: 2.5, dashArray: '3, 8', className: 'urja-approved-sea-flow', opacity: 0.95 }).addTo(leafletMapRef.current);
         polylinesRef.current.push(active_flow);
 
         // If active route is NOT Saudi/UAE Hormuz, draw Hormuz as red caution restricted line
         if (!activeRouteKey.includes('hormuz')) {
-          const hormuz_base = L.polyline(hormuzCurvedWaypoints, { color: '#ef4444', weight: 3.0, opacity: 0.12 }).addTo(leafletMapRef.current);
+          const hormuz_base = L.polyline(ALL_MARITIME_ROUTES.saudi_hormuz, { color: '#ef4444', weight: 4, opacity: 0.15 }).addTo(leafletMapRef.current);
           polylinesRef.current.push(hormuz_base);
-
-          const hormuz_caution = L.polyline(hormuzCurvedWaypoints, { color: '#ef4444', weight: 1.2, dashArray: '2, 5', opacity: 0.65 }).addTo(leafletMapRef.current);
+          const hormuz_caution = L.polyline(ALL_MARITIME_ROUTES.saudi_hormuz, { color: '#ef4444', weight: 1.5, dashArray: '4, 8', opacity: 0.65 }).addTo(leafletMapRef.current);
           polylinesRef.current.push(hormuz_caution);
         }
       }
