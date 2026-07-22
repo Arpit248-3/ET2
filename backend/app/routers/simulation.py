@@ -59,11 +59,12 @@ def run_simulation(request: SimulationRequest, db: Session = Depends(get_db)):
             raw_gap = float(raw_gap.replace("M bbl/day", "").replace("M", "").strip())
         except ValueError:
             raw_gap = 1.8
-    base_gap = float(raw_gap if raw_gap is not None else 1.8)
+    base_gap = float(raw_gap if raw_gap is not None else 1.8) * float(request.severity_multiplier)
 
     # Risk score & SPR coverage
     kpi_dict = scenario.get("kpi", {})
-    base_risk = float(kpi_dict.get("risk_score") or scenario.get("geopolitical_risk") or scenario.get("parameters", {}).get("geopolitical_risk", 60))
+    raw_risk = float(kpi_dict.get("risk_score") or scenario.get("geopolitical_risk") or scenario.get("parameters", {}).get("geopolitical_risk", 60))
+    base_risk = min(100.0, raw_risk * float(request.severity_multiplier))
     spr_start = float(kpi_dict.get("spr_coverage") or scenario.get("parameters", {}).get("inventory_days", 45))
 
     daily_points = []
