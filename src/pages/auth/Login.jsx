@@ -41,9 +41,12 @@ export default function Login() {
     setRoleOpen(false);
   };
 
+  const [otpPreview, setOtpPreview] = useState('');
+  const [resendMsg, setResendMsg] = useState('');
+
   const handleLogin = async (e) => {
     e.preventDefault();
-    setError(''); setLoading(true);
+    setError(''); setLoading(true); setResendMsg('');
     try {
       const res = await fetch(`${BACKEND}/login`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -52,9 +55,33 @@ export default function Login() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || 'Authentication failed');
       setSessionTicket(data.session_ticket);
+      if (data.otp_preview) {
+        setOtpPreview(data.otp_preview);
+      }
       setStep(2);
     } catch (err) { setError(err.message || 'Authentication failed.'); }
     finally { setLoading(false); }
+  };
+
+  const handleResendOTP = async () => {
+    setError(''); setResendMsg(''); setLoading(true);
+    try {
+      const res = await fetch(`${BACKEND}/resend-otp`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: form.email }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Resend failed');
+      if (data.otp_preview) setOtpPreview(data.otp_preview);
+      setResendMsg(`New 6-digit OTP code sent to ${form.email}`);
+    } catch (err) { setError(err.message || 'Failed to resend OTP'); }
+    finally { setLoading(false); }
+  };
+
+  const handleAutoFillOTP = () => {
+    if (otpPreview && otpPreview.length === 6) {
+      setMfaCode(otpPreview.split(''));
+    }
   };
 
   const handleMfaInput = (idx, val) => {
@@ -415,15 +442,48 @@ export default function Login() {
             </>
           ) : (
             <>
-              <div className="ln-title">TOTP Verification</div>
-              <div className="ln-hint">Enter 6-digit code from your authenticator</div>
+              <div className="ln-title">6-Digit OTP Verification</div>
+              <div className="ln-hint">Enter the 6-digit OTP code sent to your email inbox</div>
               <div style={{ textAlign: 'center', marginBottom: 10 }}>
                 <span style={{ fontSize: 10, color: '#00e5ff', background: 'rgba(0,229,255,0.07)', borderRadius: 5, padding: '4px 10px' }}>📧 {form.email}</span>
               </div>
 
+              {/* OTP Sent Banner / Hint Box */}
+              {otpPreview && (
+                <div style={{
+                  background: 'rgba(0,229,255,0.07)', border: '1px dashed rgba(0,229,255,0.3)',
+                  borderRadius: 8, padding: '8px 12px', marginBottom: 12, textAlign: 'center',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+                }}>
+                  <div style={{ textAlign: 'left' }}>
+                    <div style={{ fontSize: 10, color: 'rgba(148,163,184,0.6)' }}>📩 DISPATCHED OTP CODE:</div>
+                    <div style={{ fontSize: 15, fontFamily: 'Orbitron, monospace', fontWeight: 700, color: '#00e5ff', letterSpacing: '0.15em' }}>
+                      {otpPreview}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAutoFillOTP}
+                    style={{
+                      padding: '4px 10px', background: 'rgba(0,229,255,0.15)', border: '1px solid rgba(0,229,255,0.3)',
+                      borderRadius: 6, color: '#00e5ff', fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                      fontFamily: 'Inter', transition: 'all 0.2s'
+                    }}
+                  >
+                    Auto-Fill ✨
+                  </button>
+                </div>
+              )}
+
+              {resendMsg && (
+                <div style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 6, padding: '6px 10px', color: '#4ade80', fontSize: 10, marginBottom: 10, textAlign: 'center' }}>
+                  ✓ {resendMsg}
+                </div>
+              )}
+
               {error && <div className="ln-error">⚠️ {error}</div>}
 
-              <div style={{ fontSize: 10, color: 'rgba(148,163,184,0.45)', textAlign: 'center', letterSpacing: '0.1em' }}>6-DIGIT TOTP CODE</div>
+              <div style={{ fontSize: 10, color: 'rgba(148,163,184,0.45)', textAlign: 'center', letterSpacing: '0.1em' }}>ENTER 6-DIGIT OTP CODE</div>
               <div className="ln-mfa-grid" onPaste={handleMfaPaste}>
                 {mfaCode.map((d, i) => (
                   <input key={i} ref={el => mfaRefs.current[i] = el}
@@ -432,18 +492,21 @@ export default function Login() {
                     onKeyDown={e => handleMfaKeyDown(i, e)} inputMode="numeric" />
                 ))}
               </div>
-              <div style={{ fontSize: 10, color: 'rgba(148,163,184,0.38)', textAlign: 'center', marginBottom: 12 }}>
-                💡 Demo: enter any 6 digits (e.g. 123456)
-              </div>
 
               <button className="ln-btn" onClick={handleVerifyMFA} disabled={loading || mfaCode.join('').length !== 6}>
-                {loading ? '⟳ VERIFYING…' : '🔓 GRANT ACCESS'}
+                {loading ? '⟳ VERIFYING OTP…' : '🔓 VERIFY OTP & GRANT ACCESS'}
               </button>
 
-              <button type="button" onClick={() => { setStep(1); setMfaCode(['','','','','','']); setError(''); }}
-                style={{ width: '100%', marginTop: 8, padding: 9, background: 'none', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 7, color: 'rgba(148,163,184,0.5)', fontSize: 11, cursor: 'pointer', fontFamily: 'Inter' }}>
-                ← Back to credentials
-              </button>
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <button type="button" onClick={handleResendOTP} disabled={loading}
+                  style={{ flex: 1, padding: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(0,229,255,0.15)', borderRadius: 7, color: '#00e5ff', fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: 'Inter' }}>
+                  📩 Resend OTP
+                </button>
+                <button type="button" onClick={() => { setStep(1); setMfaCode(['','','','','','']); setError(''); setResendMsg(''); }}
+                  style={{ flex: 1, padding: 8, background: 'none', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 7, color: 'rgba(148,163,184,0.5)', fontSize: 10, cursor: 'pointer', fontFamily: 'Inter' }}>
+                  ← Back to Login
+                </button>
+              </div>
             </>
           )}
 

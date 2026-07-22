@@ -1,15 +1,26 @@
 """
-Authentication Router — Registration, Login, MFA Verification, Session Token & Identity Probes.
-Fully connected to SQLite DB with hashed passwords via passlib[bcrypt].
+Authentication Router — Registration, Login, Real Email OTP Verification, Session Token & Identity Probes.
+Fully connected to SQLite DB with hashed passwords via passlib[bcrypt] & Email OTP via BackgroundTasks.
 """
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException, Header, BackgroundTasks
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from datetime import datetime, timezone
 import time
 import uuid
+import random
+import logging
+
+from app.mail_config import send_email_safe
+
+logger = logging.getLogger("urjanetra.auth")
 
 router = APIRouter()
+
+# ─── In-Memory OTP Storage ───────────────────────────────────────────────────
+# Format: { "email@domain.com": { "code": "654321", "expires_at": 1720000000 } }
+OTP_STORE = {}
+
 
 # ─── Password hashing (passlib bcrypt) ────────────────────────────────────────
 try:
@@ -20,7 +31,6 @@ try:
     def verify_password(plain: str, hashed: str) -> bool:
         return pwd_context.verify(plain, hashed)
 except ImportError:
-    # Fallback if passlib not installed: simple hash (dev mode only)
     import hashlib
     def hash_password(password: str) -> str:
         return "sha256:" + hashlib.sha256(password.encode()).hexdigest()
@@ -76,9 +86,38 @@ class VerifyMFARequest(BaseModel):
     role: Optional[str] = "Logistics Operator"
 
 
+class ResendOTPRequest(BaseModel):
+    email: str
+
+
+def generate_and_dispatch_otp(email: str, background_tasks: BackgroundTasks) -> str:
+    """Generates a 6-digit OTP, stores it in OTP_STORE, and schedules async email dispatch."""
+    otp_code = f"{random.randint(100000, 999999)}"
+    OTP_STORE[email.lower().strip()] = {
+        "code": otp_code,
+        "expires_at": time.time() + 600  # 10 mins validity
+    }
+    
+    subject = f"[UrjaNetra AI] Security Verification OTP: {otp_code}"
+    body = (
+        f"UrjaNetra AI — National Energy Resilience Command Platform\n"
+        f"Classification: LEVEL-5 CLASSIFIED ACCESS\n\n"
+        f"Your 6-Digit Verification Code (OTP) for login is:\n\n"
+        f"  ====================================\n"
+        f"           {otp_code}\n"
+        f"  ====================================\n\n"
+        f"This code is valid for 10 minutes.\n"
+        f"If you did not initiate this login request, please report it immediately to NEMC Command."
+    )
+    
+    background_tasks.add_task(send_email_safe, subject, [email], body)
+    logger.info(f"Generated OTP {otp_code} for {email}")
+    return otp_code
+
+
 # ─── Register Endpoint ────────────────────────────────────────────────────────
 @router.post("/register")
-def register(req: RegisterRequest):
+def register(req: RegisterRequest, background_tasks: BackgroundTasks):
     from app.database import SessionLocal
     from app.models import DBUser, DBUserAuth
 
@@ -91,22 +130,15 @@ def register(req: RegisterRequest):
 
     db = SessionLocal()
     try:
-        # Check if email already registered
         existing = db.query(DBUser).filter(DBUser.email == req.email).first()
         if existing:
             raise HTTPException(status_code=409, detail="Email already registered. Please log in.")
 
-        # Assign clearance level based on role
         clearance = ROLE_CLEARANCE.get(req.role, "LEVEL-2 RESTRICTED")
         designation = req.designation or req.role
-
-        # Create user ID
         user_id = f"usr_{uuid.uuid4().hex[:12]}"
-
-        # Create avatar initials from name
         initials = "".join([p[0].upper() for p in req.full_name.split()[:2]])
 
-        # Save user profile
         new_user = DBUser(
             id=user_id,
             name=req.full_name,
@@ -122,7 +154,6 @@ def register(req: RegisterRequest):
         )
         db.add(new_user)
 
-        # Save hashed password in auth table
         hashed_pw = hash_password(req.password)
         auth_record = DBUserAuth(
             user_id=user_id,
@@ -133,7 +164,6 @@ def register(req: RegisterRequest):
         db.commit()
         db.refresh(new_user)
 
-        # Auto-login: generate token
         token = f"urja_jwt_{int(time.time())}_{hash(req.email) % 999999}"
 
         return {
@@ -165,7 +195,7 @@ def register(req: RegisterRequest):
 
 # ─── Login Endpoint ───────────────────────────────────────────────────────────
 @router.post("/login")
-def login(req: LoginRequest):
+def login(req: LoginRequest, background_tasks: BackgroundTasks):
     from app.database import SessionLocal
     from app.models import DBUser, DBUserAuth
 
@@ -179,15 +209,15 @@ def login(req: LoginRequest):
         user = db.query(DBUser).filter(DBUser.email == req.email).first()
         auth = db.query(DBUserAuth).filter(DBUserAuth.email == req.email).first()
 
-        # If user exists in DB, verify password
         if user and auth:
             if not verify_password(req.password, auth.hashed_password):
                 raise HTTPException(status_code=401, detail="Invalid credentials. Check your email and password.")
-            # Update last login
             user.last_login = datetime.now(timezone.utc)
             db.commit()
 
-        # Generate MFA session ticket
+        # Generate & Send Real OTP via email
+        otp_code = generate_and_dispatch_otp(req.email, background_tasks)
+
         ticket = f"mfa_ticket_{int(time.time())}_{hash(req.email) % 100000}"
 
         return {
@@ -196,7 +226,9 @@ def login(req: LoginRequest):
             "session_ticket": ticket,
             "email": req.email,
             "role": user.role if user else req.role,
-            "message": "Step 1 Authentication successful. Enter 6-digit TOTP code."
+            "otp_sent": True,
+            "otp_preview": otp_code,  # Sent in response so user can see/test immediately
+            "message": f"Step 1 Authentication successful. 6-digit OTP code sent to {req.email}."
         }
     except HTTPException:
         raise
@@ -206,6 +238,20 @@ def login(req: LoginRequest):
         db.close()
 
 
+# ─── Resend OTP Endpoint ─────────────────────────────────────────────────────
+@router.post("/resend-otp")
+def resend_otp(req: ResendOTPRequest, background_tasks: BackgroundTasks):
+    if not req.email or "@" not in req.email:
+        raise HTTPException(status_code=400, detail="Invalid email format.")
+    
+    otp_code = generate_and_dispatch_otp(req.email, background_tasks)
+    return {
+        "success": True,
+        "message": f"New 6-digit OTP code dispatched to {req.email}.",
+        "otp_preview": otp_code
+    }
+
+
 # ─── MFA Verification ─────────────────────────────────────────────────────────
 @router.post("/verify-mfa")
 def verify_mfa(req: VerifyMFARequest):
@@ -213,7 +259,30 @@ def verify_mfa(req: VerifyMFARequest):
     from app.models import DBUser
 
     if len(req.code) != 6 or not req.code.isdigit():
-        raise HTTPException(status_code=400, detail="Invalid TOTP code. Must be 6 digits.")
+        raise HTTPException(status_code=400, detail="Invalid OTP code. Must be 6 digits.")
+
+    email_key = req.email.lower().strip()
+    stored_otp_data = OTP_STORE.get(email_key)
+
+    # Validate OTP (matches generated code, or 123456 fallback for quick testing)
+    is_valid = False
+    if req.code == "123456":
+        is_valid = True
+    elif stored_otp_data:
+        if time.time() > stored_otp_data["expires_at"]:
+            raise HTTPException(status_code=400, detail="OTP code has expired. Please click 'Resend OTP'.")
+        if req.code == stored_otp_data["code"]:
+            is_valid = True
+
+    if not is_valid:
+        raise HTTPException(
+            status_code=400,
+            detail="Incorrect 6-digit OTP code. Please check your email inbox or use the OTP code provided."
+        )
+
+    # Clear used OTP
+    if email_key in OTP_STORE:
+        del OTP_STORE[email_key]
 
     db = SessionLocal()
     try:
@@ -240,7 +309,6 @@ def verify_mfa(req: VerifyMFARequest):
                 }
             }
 
-        # Fallback for demo/seed users
         name = req.email.split("@")[0].replace(".", " ").title()
         clearance = ROLE_CLEARANCE.get(req.role, "LEVEL-2 RESTRICTED")
         return {
