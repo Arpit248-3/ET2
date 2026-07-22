@@ -607,6 +607,27 @@ $$\text{SPR Depletion Constraint:} \quad \int_{0}^{T} \text{Release}_{\text{cave
 
 ---
 
+
+---
+
+## 🔑 Administrative Control, Mail OTP & Help Desk Integration
+
+### 1. 6-Digit Mail OTP Authentication System
+* **Real Email Dispatch via Gmail SMTP:** Standardized synchronous email dispatch (`send_email_safe` running in `BackgroundTasks`) delivers 6-digit MFA OTP codes directly to user registered email inboxes (e.g., Gmail, Outlook, Gov domains).
+* **Multi-Factor Security:** Every user login triggers a unique 6-digit security code. Users can request instant OTP resends (`POST /api/auth/resend-otp`), which refresh and dispatch a new 6-digit verification code.
+
+### 2. Dedicated System Administrator Portal (`/admin`)
+* **Exclusive Access:** Reserved specifically for System Administrators (`email: arpitjham1@gmail.com`, default passwords: `12345678` or `admin@123`, role: `System Administrator`).
+* **Admin-Scoped Sidebar:** When logged in as Admin, the navigation sidebar automatically isolates access exclusively to **👑 Admin Portal**, suppressing standard operator tabs.
+* **Bi-Directional Email Help Desk (`POST /api/help/admin/tickets/{id}/reply`):**
+  * When any user submits a query on the Help Center, an email notification containing query details is dispatched to `arpitjham1@gmail.com`.
+  * In the Admin Portal, Administrators can filter tickets (`ALL`, `OPEN`, `RESOLVED`), inspect user query details, and type official responses.
+  * Clicking **"Send Official Response & Email User 🚀"** updates the ticket status to `RESOLVED` and dispatches the official solution directly to that user's email inbox via Gmail SMTP.
+
+### 3. Dynamic Scenario Recalculation & Oil Price Trend Charts
+* **Dynamic Recalculation Engine:** The Scenario Simulator features dynamic calculations where clicking **"Recalculate Scenario Model"** dynamically re-scales `base_gap`, `base_risk`, `price_spike`, and macroeconomic indicators based on severity multipliers.
+* **Dynamic Crude Price Curves:** Command Center crude price trend charts derive dynamic 30-day price trajectories for **Brent**, **Indian Basket**, and **WTI** crudes matching active scenario shocks (e.g. *Strait of Hormuz*, *Bab-el-Mandeb*, *SCADA Attack*, *Cyclone Biparjoy*), accompanied by dynamic text summaries.
+
 ## 💻 Complete Technology Stack Summary
 
 | Layer | Technologies & Frameworks Used |

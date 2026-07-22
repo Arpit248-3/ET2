@@ -438,6 +438,43 @@ export default function Login() {
                 </button>
               </form>
 
+              {/* Highlighted Admin Credentials Hint */}
+              <div style={{
+                marginTop: 12,
+                padding: '8px 10px',
+                background: 'rgba(168,85,247,0.08)',
+                border: '1px dashed rgba(168,85,247,0.35)',
+                borderRadius: 8,
+                fontSize: 10.5,
+                color: '#c084fc',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 6
+              }}>
+                <span>👑 <strong>Admin:</strong> <code style={{ color: '#fff', background: 'rgba(0,0,0,0.3)', padding: '1px 4px', borderRadius: 3 }}>arpitjham1@gmail.com</code> | Pass: <code style={{ color: '#fff', background: 'rgba(0,0,0,0.3)', padding: '1px 4px', borderRadius: 3 }}>12345678</code></span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForm({ email: 'arpitjham1@gmail.com', password: '12345678', role: 'System Administrator' });
+                    setSelectedRole(ROLES[0]);
+                  }}
+                  style={{
+                    background: 'rgba(168,85,247,0.25)',
+                    border: '1px solid rgba(168,85,247,0.5)',
+                    color: '#fff',
+                    padding: '3px 8px',
+                    borderRadius: 5,
+                    fontSize: 9.5,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  Fill Admin ⚡
+                </button>
+              </div>
+
               <div className="ln-divider">
                 <span style={{ fontSize: 10, color: 'rgba(148,163,184,0.38)' }}>No clearance?</span>
               </div>
