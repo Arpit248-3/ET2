@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { Play, BarChart2, Map, CheckCircle, X, Bot, Loader, AlertTriangle, WifiOff } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Play, BarChart2, CheckCircle, Bot, Loader, AlertTriangle, WifiOff, Zap, RefreshCw, ShieldAlert, ArrowUpRight } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import DashboardLayout from '../../components/layout/DashboardLayout.jsx';
 import GlassCard from '../../components/ui/GlassCard.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
@@ -11,85 +11,112 @@ import { runSimulation, fetchEconomicImpact } from '../../services/api.js';
 
 export default function ScenarioSimulator() {
   const { addToast } = useToast();
-  const { activeScenario, scenarios, backendOnline, refreshState } = useScenario();
-  const [selected, setSelected] = useState(activeScenario?.id || 'hormuz_closure');
+  const { activeScenario, scenarios, backendOnline, activateScenario, refreshState } = useScenario();
+
+  const [selected, setSelected] = useState(() => activeScenario?.id || 'hormuz_closure');
   const [running, setRunning] = useState(false);
-  const [ran, setRan] = useState(false);
+  const [activating, setActivating] = useState(false);
+  const [simulationCache, setSimulationCache] = useState(null);
   const [simulationError, setSimulationError] = useState(null);
 
-  // Cache-based simulation state
-  const [simulationCache, setSimulationCache] = useState(() => {
-    const cached = localStorage.getItem('urja_simulation_cache');
-    return cached ? JSON.parse(cached) : null;
-  });
-
-  // Display scenarios from ScenarioContext
+  // Derive list of scenarios
   const displayScenarios = scenarios.map(s => ({
     id: s.id,
     name: s.name,
     impact: s.severity || 'HIGH',
-    probability: s.probability || 50
+    probability: s.probability || 50,
+    import_gap: s.india_import_gap_mbbl_day || 0,
+    price_spike: s.crude_price_spike_usd || 0,
+    risk_score: s.kpi?.risk_score || s.geopolitical_risk || 50,
+    region: s.region || 'Middle East',
+    is_active: activeScenario?.id === s.id,
   }));
+
+  // Run simulation for selected scenario
+  const executeSimulation = useCallback(async (scenarioId, isManualRun = false) => {
+    setRunning(true);
+    setSimulationError(null);
+
+    try {
+      const targetId = scenarioId || selected;
+      const res = await runSimulation({ scenario_id: targetId, duration_days: 30 });
+      
+      let econData = null;
+      try {
+        econData = await fetchEconomicImpact({ scenario_id: targetId });
+      } catch (econErr) {
+        console.warn("Economic impact fetch warning:", econErr);
+      }
+
+      const cacheResult = {
+        scenario_id: targetId,
+        summary: res.summary,
+        daily_projection: res.daily_projection,
+        recommended_action: res.recommended_action,
+        econ: econData,
+        timestamp: new Date().toLocaleTimeString(),
+      };
+
+      setSimulationCache(cacheResult);
+      localStorage.setItem(`urja_sim_${targetId}`, JSON.stringify(cacheResult));
+
+      if (isManualRun) {
+        addToast(`Simulation updated for ${scenarios.find(s => s.id === targetId)?.name || targetId}`, 'success');
+      }
+    } catch (err) {
+      console.error('Simulation error:', err);
+      setSimulationError(err.message || 'Simulation execution failed');
+      if (isManualRun) addToast('Simulation failed to run', 'error');
+    } finally {
+      setRunning(false);
+    }
+  }, [selected, scenarios, addToast]);
+
+  // Sync simulation when selected scenario changes
+  useEffect(() => {
+    if (selected) {
+      executeSimulation(selected, false);
+    }
+  }, [selected, executeSimulation]);
+
+  // Activate scenario globally
+  const handleActivateScenario = async (scenarioId) => {
+    const targetId = scenarioId || selected;
+    setActivating(true);
+    try {
+      await activateScenario(targetId);
+      await refreshState();
+      const sObj = scenarios.find(s => s.id === targetId);
+      addToast(`⚡ Scenario "${sObj?.name || targetId}" activated system-wide!`, 'success');
+    } catch (err) {
+      console.error('Failed to activate scenario:', err);
+      addToast('Failed to activate scenario', 'error');
+    } finally {
+      setActivating(false);
+    }
+  };
 
   const handleCompareScenarios = () => {
     if (scenarios && scenarios.length > 0) {
       const summary = scenarios.map(s => `${s.name} (${s.severity || 'HIGH'})`).join(' vs ');
-      addToast(`Comparing scenarios: ${summary}`, 'info');
+      addToast(`Comparing ${scenarios.length} scenarios: ${summary}`, 'info');
     } else {
       addToast('No active scenarios loaded for comparison.', 'warning');
     }
   };
 
-  const handleRunScenario = async () => {
-    setRunning(true);
-    setRan(false);
-    setSimulationError(null);
+  // Selected scenario object metadata
+  const selectedObj = scenarios.find(s => s.id === selected) || activeScenario;
 
-    try {
-      const res = await runSimulation({ scenario_id: selected, duration_days: 30 });
-      
-      // Fetch economic impact to enrich missing GDP/Inflation values
-      let econData = null;
-      try {
-        econData = await fetchEconomicImpact();
-      } catch (econErr) {
-        console.error("Failed to fetch economic impact post-simulation:", econErr);
-      }
-
-      const cacheResult = {
-        summary: res.summary,
-        daily_projection: res.daily_projection,
-        recommended_action: res.recommended_action,
-        econ: econData
-      };
-
-      setSimulationCache(cacheResult);
-      localStorage.setItem('urja_simulation_cache', JSON.stringify(cacheResult));
-      
-      // Refresh pipeline context after simulation run
-      await refreshState();
-      
-      addToast('Scenario simulation complete — live data loaded', 'success');
-      setRan(true);
-    } catch (err) {
-      console.error(err);
-      setSimulationError(err.message || 'Simulation failed');
-      addToast('Failed to run simulation', 'error');
-    } finally {
-      setRunning(false);
-    }
-  };
-
-  // Derived display data
+  // Derived display metrics from simulation result
   const result = simulationCache?.summary
     ? {
         supplyLoss: `${simulationCache.summary.total_supply_gap_mbbl || 0}M bbl`,
-        priceSurge: `+$${Math.round((simulationCache.summary.peak_brent || 88) - 88)}/bbl`,
+        priceSurge: `+$${Math.round((simulationCache.summary.peak_brent || 88) - (selectedObj?.brent_baseline_usd || 88))}/bbl`,
         gdpImpact: (() => {
           const v = simulationCache.econ?.metrics?.gdp?.value;
           if (v === undefined || v === null) return '-0.0%';
           const num = parseFloat(v);
-          // value is already signed (negative for contraction)
           return `${num > 0 ? '+' : ''}${num}%`;
         })(),
         inflationImpact: (() => {
@@ -99,201 +126,317 @@ export default function ScenarioSimulator() {
           return `${num >= 0 ? '+' : ''}${num}%`;
         })(),
         duration: '30 days',
-        severity: simulationCache.summary.severity || 'HIGH',
+        severity: simulationCache.summary.severity || selectedObj?.severity || 'HIGH',
       }
     : null;
 
   const displayChart = simulationCache?.daily_projection
     ? simulationCache.daily_projection.map((d, i) => ({ 
-        t: `D+${d.day || i}`, 
+        t: `Day ${d.day || i + 1}`, 
         price: d.brent_price || 88, 
-        supply: d.spr_level_pct || 100 
+        supply: d.spr_level_pct || 100,
+        risk: d.risk_score || 50,
+        gap: d.supply_gap_mbbl || 0,
       }))
     : [];
 
-  const displayRecommendation = simulationCache?.recommended_action || '';
-
-  // Safe empty offline view if no cache is available and offline
-  if (!simulationCache && !backendOnline) {
-    return (
-      <DashboardLayout>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '80vh', gap: 16 }}>
-          <WifiOff size={48} style={{ color: '#f59e0b' }} />
-          <h2>System Offline</h2>
-          <p style={{ color: 'var(--text-muted)' }}>Could not connect to the UrjaNetra AI backend, and no cached simulation result is available.</p>
-          <button className="btn btn-primary" onClick={handleRunScenario}>
-            <Loader size={14} style={{ marginRight: 6 }} /> Retry Connection
-          </button>
-        </div>
-      </DashboardLayout>
-    );
-  }
+  const displayRecommendation = simulationCache?.recommended_action || selectedObj?.description || '';
 
   return (
     <DashboardLayout>
       {!backendOnline && (
         <div style={{
-          background: 'rgba(245,158,11,0.08)',
-          border: '1px solid rgba(245,158,11,0.25)',
-          borderRadius: 8,
-          padding: '10px 16px',
-          marginBottom: 16,
-          fontSize: 12,
-          color: '#f59e0b',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8
+          background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)',
+          borderRadius: 8, padding: '10px 16px', marginBottom: 16, fontSize: 12,
+          color: '#f59e0b', display: 'flex', alignItems: 'center', gap: 8
         }}>
           <AlertTriangle size={14} />
-          <span>Showing last known intelligence state (Offline)</span>
+          <span>Showing last known intelligence state (Offline mode)</span>
         </div>
       )}
 
-      <PageHeader title="AI Scenario Simulator" subtitle="Geopolitical risk modeling · Economic impact projection · Strategic planning"
+      <PageHeader title="AI Scenario Simulator" subtitle="Geopolitical risk modeling · Economic impact projection · Real-time reserve simulation"
         actions={<>
-          <button className="btn btn-secondary btn-sm" onClick={handleCompareScenarios}>Compare Scenarios</button>
-          <button className="btn btn-secondary btn-sm" onClick={() => addToast('Custom scenario builder opened', 'info')}>Custom Scenario</button>
-          <button className="btn btn-primary btn-sm" onClick={handleRunScenario} disabled={running}>
-            {running ? <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 13, height: 13, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin-slow 0.8s linear infinite' }} />Running...</span> : <><Play size={13} /> Run Simulation</>}
+          <button className="btn btn-secondary btn-sm" onClick={handleCompareScenarios}>
+            <BarChart2 size={13} /> Compare Scenarios
+          </button>
+          <button className="btn btn-warning btn-sm" onClick={() => handleActivateScenario(selected)} disabled={activating}>
+            {activating ? <Loader size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Zap size={13} />} Activate Selected
+          </button>
+          <button className="btn btn-primary btn-sm" onClick={() => executeSimulation(selected, true)} disabled={running}>
+            {running
+              ? <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Loader size={13} style={{ animation: 'spin 0.8s linear infinite' }} /> Simulating...</span>
+              : <><Play size={13} /> Run Simulation</>}
           </button>
         </>}
       />
 
-      {/* Error Notification Banner */}
-      {backendOnline && simulationError && (
-        <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', padding: '10px 16px', borderRadius: 8, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+      {/* Error Banner */}
+      {simulationError && (
+        <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444', padding: '10px 16px', borderRadius: 8, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
           <AlertTriangle size={14} />
-          Simulation failed: {simulationError}. Showing cached projections.
+          <span>Simulation alert: {simulationError}. Projections dynamically rendered from parameters.</span>
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, marginBottom: 16 }}>
-        {/* Scenario selector */}
-        <GlassCard>
-          <h3 style={{ fontSize: 13, fontWeight: 700, marginBottom: 14, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Select Scenario</h3>
-          {displayScenarios.length === 0 ? (
-            <div style={{ padding: 10, color: 'var(--text-muted)', fontSize: 12 }}>No scenarios loaded from backend.</div>
-          ) : (
-            displayScenarios.map(s => (
-              <div key={s.id} onClick={() => { setSelected(s.id); setRan(false); setSimulationError(null); }}
-                style={{ padding: '12px 14px', borderRadius: 8, marginBottom: 8, cursor: 'pointer', border: `1px solid ${selected === s.id ? 'rgba(29,140,255,0.4)' : 'var(--border-soft)'}`, background: selected === s.id ? 'rgba(29,140,255,0.1)' : 'rgba(255,255,255,0.02)', transition: 'all 0.2s' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: selected === s.id ? '#1d8cff' : 'var(--text-main)' }}>{s.name}</span>
-                  <StatusBadge status={s.impact} size="sm" />
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <div style={{ flex: 1, height: 3, borderRadius: 2, background: 'rgba(255,255,255,0.08)' }}>
-                    <div style={{ width: `${s.probability}%`, height: '100%', borderRadius: 2, background: s.impact === 'CRITICAL' ? '#ef4444' : s.impact === 'HIGH' ? '#f59e0b' : '#1d8cff' }} />
-                  </div>
-                  <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>{s.probability}%</span>
-                </div>
-              </div>
-            ))
-          )}
-        </GlassCard>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 340px) 1fr', gap: 16 }}>
+        
+        {/* Left Column: Scenarios List */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <GlassCard>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <h3 style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                Scenarios Registry ({displayScenarios.length})
+              </h3>
+              <span style={{ fontSize: 10, color: '#00e5ff', background: 'rgba(0,229,255,0.1)', padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>
+                SELECT TO SIMULATE
+              </span>
+            </div>
 
-        {/* Simulation area */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {ran || simulationCache ? (
-            <>
-              {result && (() => {
-                const selectedScenarioObj = scenarios.find(s => s.id === selected) || activeScenario;
+            {displayScenarios.length === 0 ? (
+              <div style={{ padding: 12, color: 'var(--text-muted)', fontSize: 12 }}>No scenarios loaded from backend.</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: '68vh', overflowY: 'auto', paddingRight: 2 }}>
+                {displayScenarios.map(s => {
+                  const isSelected = selected === s.id;
+                  const isActiveBaseline = activeScenario?.id === s.id;
 
-                return (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12 }}>
-                    {[
-                      { 
-                        label: 'Supply Loss', 
-                        val: result.supplyLoss, 
-                        color: '#ef4444',
-                        desc: `Daily import gap: ${selectedScenarioObj?.india_import_gap_mbbl_day || '0'}M bbl/day. Total projected shortage: ${result.supplyLoss}. Impacted routes: ${selectedScenarioObj?.affected_routes?.join(', ') || 'None'}.`
-                      },
-                      { 
-                        label: 'Price Surge', 
-                        val: result.priceSurge, 
-                        color: '#f59e0b',
-                        desc: `Baseline Brent: $${selectedScenarioObj?.brent_baseline_usd || '88'}/bbl. Price shock: +$${selectedScenarioObj?.crude_price_spike_usd || '0'}/bbl. Insurance premium surge: +${selectedScenarioObj?.insurance_premium_spike_pct || '0'}%.`
-                      },
-                      { 
-                        label: 'GDP Impact', 
-                        val: result.gdpImpact, 
-                        color: '#ef4444',
-                        desc: `Calculated GDP impact: ${result.gdpImpact}. Contraction based on macroeconomic risk weights for ${selectedScenarioObj?.region || 'resilience region'}.`
-                      },
-                      { 
-                        label: 'Inflation Impact', 
-                        val: result.inflationImpact, 
-                        color: '#f59e0b',
-                        desc: `Calculated inflation pressure: ${result.inflationImpact}. Affected suppliers: ${selectedScenarioObj?.affected_suppliers?.join(', ') || 'None'}.`
-                      },
-                      { 
-                        label: 'Duration', 
-                        val: result.duration, 
-                        color: '#1d8cff',
-                        desc: `Simulation phase: ${selectedScenarioObj?.duration_days || '30'} days. Shipping delays through transit lanes increased by ${selectedScenarioObj?.maritime_delay_pct || '0'}%.`
-                      },
-                      { 
-                        label: 'Severity', 
-                        val: result.severity, 
-                        color: result.severity === 'CRITICAL' ? '#ef4444' : '#f59e0b',
-                        desc: `Urgency level: ${result.severity}. Geopolitical risk rating: ${selectedScenarioObj?.geopolitical_risk || '50'}/100. SPR coverage: ${selectedScenarioObj?.kpi?.spr_coverage || 'N/A'} days.`
-                      },
-                    ].map(k => (
-                      <GlassCard key={k.label} style={{ textAlign: 'center', padding: '14px', position: 'relative', overflow: 'visible', cursor: 'help' }}>
-                        <div style={{ fontSize: 20, fontWeight: 800, color: k.color }}>{k.val}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>{k.label}</div>
-                        <div className="urja-kpi-tooltip">
-                          <strong style={{ color: k.color, display: 'block', marginBottom: '4px' }}>{k.label}</strong>
-                          {k.desc}
+                  return (
+                    <div
+                      key={s.id}
+                      onClick={() => { setSelected(s.id); }}
+                      style={{
+                        padding: '12px 14px', borderRadius: 10, cursor: 'pointer',
+                        border: isSelected
+                          ? '1px solid rgba(0,229,255,0.6)'
+                          : isActiveBaseline
+                          ? '1px solid rgba(245,158,11,0.4)'
+                          : '1px solid var(--border-soft)',
+                        background: isSelected
+                          ? 'rgba(0,229,255,0.08)'
+                          : isActiveBaseline
+                          ? 'rgba(245,158,11,0.05)'
+                          : 'rgba(255,255,255,0.02)',
+                        transition: 'all 0.2s',
+                        boxShadow: isSelected ? '0 0 16px rgba(0,229,255,0.12)' : 'none',
+                        position: 'relative',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: isSelected ? '#00e5ff' : 'var(--text-main)' }}>
+                            {s.name}
+                          </div>
+                          <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 2 }}>
+                            {s.region} · Gap: {s.import_gap}M bbl/d · Spike: +${s.price_spike}
+                          </div>
                         </div>
-                      </GlassCard>
-                    ))}
-                  </div>
-                );
-              })()}
+                        <StatusBadge status={s.impact} size="sm" />
+                      </div>
 
-              {displayChart.length > 0 && (
-                <GlassCard>
-                  <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Price & Supply Timeline</h3>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <AreaChart data={displayChart}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(90,130,255,0.08)" />
-                      <XAxis dataKey="t" tick={{ fill: '#64748b', fontSize: 11 }} />
-                      <YAxis tick={{ fill: '#64748b', fontSize: 11 }} />
-                      <Tooltip contentStyle={{ background: 'rgba(8,18,35,0.95)', border: '1px solid rgba(90,130,255,0.3)', borderRadius: 8, fontSize: 12 }} />
-                      <Area type="monotone" dataKey="price" stroke="#ef4444" fill="rgba(239,68,68,0.15)" name="Oil Price ($)" />
-                      <Area type="monotone" dataKey="supply" stroke="#1d8cff" fill="rgba(29,140,255,0.15)" name="Supply (%)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </GlassCard>
-              )}
+                      {/* Probability & Active indicators */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, marginRight: 10 }}>
+                          <div style={{ flex: 1, height: 3, borderRadius: 2, background: 'rgba(255,255,255,0.08)' }}>
+                            <div style={{
+                              width: `${s.probability}%`, height: '100%', borderRadius: 2,
+                              background: s.impact === 'CRITICAL' ? '#ef4444' : s.impact === 'HIGH' ? '#f59e0b' : '#1d8cff'
+                            }} />
+                          </div>
+                          <span style={{ fontSize: 10, color: 'var(--text-dim)', fontFamily: 'monospace' }}>{s.probability}%</span>
+                        </div>
 
-              {displayRecommendation && (
-                <GlassCard style={{ background: 'rgba(29,140,255,0.05)', borderColor: 'rgba(29,140,255,0.3)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                    <Bot size={16} style={{ color: '#00e5ff' }} />
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#00e5ff' }}>AI Strategic Recommendation</span>
-                  </div>
-                  <p style={{ fontSize: 13, color: 'var(--text-main)', lineHeight: 1.7, marginBottom: 14 }}>
-                    {displayRecommendation}
-                  </p>
-                  <div style={{ display: 'flex', gap: 10 }}>
-                    <button className="btn btn-success btn-sm" onClick={() => addToast('Action plan approved', 'success')}><CheckCircle size={13} /> Approve Plan</button>
-                    <button className="btn btn-secondary btn-sm" onClick={() => addToast('Running alternative scenarios...', 'info')}>Modify Parameters</button>
-                    <button className="btn btn-ghost btn-sm" onClick={() => addToast('Alternative scenario running...', 'info')}>Run Alternative</button>
-                  </div>
-                </GlassCard>
-              )}
-            </>
-          ) : (
-            <GlassCard style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400, textAlign: 'center' }}>
-              <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(29,140,255,0.1)', border: '1px solid rgba(29,140,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-                {running
-                  ? <span style={{ width: 28, height: 28, border: '3px solid rgba(29,140,255,0.3)', borderTopColor: '#1d8cff', borderRadius: '50%', animation: 'spin-slow 0.8s linear infinite', display: 'block' }} />
-                  : <Play size={26} style={{ color: '#1d8cff' }} />}
+                        {isActiveBaseline && (
+                          <span style={{ fontSize: 9, color: '#f59e0b', fontWeight: 700, background: 'rgba(245,158,11,0.15)', padding: '2px 6px', borderRadius: 4, letterSpacing: '0.05em' }}>
+                            ACTIVE BASELINE
+                          </span>
+                        )}
+                        {isSelected && !isActiveBaseline && (
+                          <span style={{ fontSize: 9, color: '#00e5ff', fontWeight: 700, background: 'rgba(0,229,255,0.15)', padding: '2px 6px', borderRadius: 4 }}>
+                            SELECTED
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-              <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-main)', marginBottom: 8 }}>{running ? 'Simulating Scenario...' : 'Ready to Simulate'}</h3>
-              <p style={{ fontSize: 13, color: 'var(--text-muted)', maxWidth: 320 }}>{running ? 'AI is running economic models, supply chain analysis, and risk projections...' : 'Select a scenario and click Run Simulation to generate projections.'}</p>
+            )}
+          </GlassCard>
+
+          {/* Quick Info Card for Selected Scenario */}
+          {selectedObj && (
+            <GlassCard style={{ background: 'rgba(0,229,255,0.03)', borderColor: 'rgba(0,229,255,0.2)' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#00e5ff', letterSpacing: '0.08em', marginBottom: 6, textTransform: 'uppercase' }}>
+                Scenario Profile: {selectedObj.name}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: 10 }}>
+                {selectedObj.description || 'Geopolitical disruption scenario modeling impact on India crude imports.'}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 11 }}>
+                <div style={{ background: 'rgba(255,255,255,0.03)', padding: 6, borderRadius: 6 }}>
+                  <span style={{ color: 'var(--text-dim)' }}>Baseline Brent:</span>
+                  <strong style={{ color: '#fff', marginLeft: 4 }}>${selectedObj.brent_baseline_usd || 88}/bbl</strong>
+                </div>
+                <div style={{ background: 'rgba(255,255,255,0.03)', padding: 6, borderRadius: 6 }}>
+                  <span style={{ color: 'var(--text-dim)' }}>Price Spike:</span>
+                  <strong style={{ color: '#f59e0b', marginLeft: 4 }}>+${selectedObj.crude_price_spike_usd || 0}/bbl</strong>
+                </div>
+                <div style={{ background: 'rgba(255,255,255,0.03)', padding: 6, borderRadius: 6 }}>
+                  <span style={{ color: 'var(--text-dim)' }}>Import Gap:</span>
+                  <strong style={{ color: '#ef4444', marginLeft: 4 }}>{selectedObj.india_import_gap_mbbl_day || 0} M bbl/d</strong>
+                </div>
+                <div style={{ background: 'rgba(255,255,255,0.03)', padding: 6, borderRadius: 6 }}>
+                  <span style={{ color: 'var(--text-dim)' }}>Risk Score:</span>
+                  <strong style={{ color: '#00e5ff', marginLeft: 4 }}>{selectedObj.kpi?.risk_score || selectedObj.geopolitical_risk || 50}/100</strong>
+                </div>
+              </div>
+            </GlassCard>
+          )}
+        </div>
+
+        {/* Right Column: Simulation Output & Dynamic Graph */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          
+          {/* Header Banner for Selected Scenario */}
+          <div style={{
+            background: 'rgba(8,18,38,0.85)', border: '1px solid rgba(0,229,255,0.2)',
+            borderRadius: 12, padding: '12px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,229,255,0.1)',
+                border: '1px solid rgba(0,229,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#00e5ff'
+              }}>
+                <BarChart2 size={18} />
+              </div>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#e2e8f0' }}>
+                  {selectedObj?.name || 'Simulation Results'}
+                </div>
+                <div style={{ fontSize: 11, color: 'rgba(148,163,184,0.6)', marginTop: 1 }}>
+                  30-Day Projections · {result ? `Updated ${simulationCache.timestamp}` : 'Ready'}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {running && <span style={{ fontSize: 11, color: '#00e5ff', display: 'flex', alignItems: 'center', gap: 6 }}><Loader size={12} style={{ animation: 'spin 0.8s linear infinite' }} /> Computing...</span>}
+              <button className="btn btn-secondary btn-sm" onClick={() => executeSimulation(selected, true)} disabled={running}>
+                <RefreshCw size={12} /> Recalculate
+              </button>
+            </div>
+          </div>
+
+          {/* Metric KPI Cards */}
+          {result && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12 }}>
+              {[
+                { 
+                  label: 'Supply Loss', 
+                  val: result.supplyLoss, 
+                  color: '#ef4444',
+                  desc: `Daily import gap: ${selectedObj?.india_import_gap_mbbl_day || '0'}M bbl/day. Total projected shortage over 30 days: ${result.supplyLoss}.`
+                },
+                { 
+                  label: 'Peak Price Surge', 
+                  val: result.priceSurge, 
+                  color: '#f59e0b',
+                  desc: `Baseline Brent: $${selectedObj?.brent_baseline_usd || '88'}/bbl. Price shock peak: +$${selectedObj?.crude_price_spike_usd || '0'}/bbl.`
+                },
+                { 
+                  label: 'GDP Impact', 
+                  val: result.gdpImpact, 
+                  color: '#ef4444',
+                  desc: `Calculated GDP impact for ${selectedObj?.name || 'this scenario'}: ${result.gdpImpact}. Contraction based on energy cost pass-through.`
+                },
+                { 
+                  label: 'Inflation Impact', 
+                  val: result.inflationImpact, 
+                  color: '#f59e0b',
+                  desc: `Calculated inflation pressure: ${result.inflationImpact}. Driven by fuel transport & logistics spillovers.`
+                },
+                { 
+                  label: 'Duration', 
+                  val: result.duration, 
+                  color: '#1d8cff',
+                  desc: `Simulation phase: 30 days. Supply gap closes after day 22 as alternate maritime cargoes arrive.`
+                },
+                { 
+                  label: 'Severity Level', 
+                  val: result.severity, 
+                  color: result.severity === 'CRITICAL' ? '#ef4444' : '#f59e0b',
+                  desc: `Scenario severity rating: ${result.severity}. Geopolitical risk rating: ${selectedObj?.kpi?.risk_score || selectedObj?.geopolitical_risk || 50}/100.`
+                },
+              ].map(k => (
+                <GlassCard key={k.label} style={{ textAlign: 'center', padding: '14px', position: 'relative', overflow: 'visible' }}>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: k.color }}>{k.val}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>{k.label}</div>
+                </GlassCard>
+              ))}
+            </div>
+          )}
+
+          {/* 30-Day Projections Chart */}
+          {displayChart.length > 0 && (
+            <GlassCard>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                <div>
+                  <h3 style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0' }}>
+                    30-Day Crude Price ($) & Strategic Reserve (%) Trajectory
+                  </h3>
+                  <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
+                    Dynamic response curve for <strong>{selectedObj?.name}</strong>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 12, fontSize: 11 }}>
+                  <span style={{ color: '#ef4444', fontWeight: 600 }}>🔴 Oil Price ($/bbl)</span>
+                  <span style={{ color: '#00e5ff', fontWeight: 600 }}>🔵 SPR Reserve Level (%)</span>
+                </div>
+              </div>
+
+              <ResponsiveContainer width="100%" height={240}>
+                <AreaChart data={displayChart} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="priceGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#ef4444" stopOpacity={0.35}/>
+                      <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="supplyGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#00e5ff" stopOpacity={0.35}/>
+                      <stop offset="95%" stopColor="#00e5ff" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(90,130,255,0.08)" />
+                  <XAxis dataKey="t" tick={{ fill: '#64748b', fontSize: 10 }} interval={3} />
+                  <YAxis yAxisId="left" orientation="left" tick={{ fill: '#ef4444', fontSize: 10 }} domain={['dataMin - 5', 'dataMax + 5']} />
+                  <YAxis yAxisId="right" orientation="right" tick={{ fill: '#00e5ff', fontSize: 10 }} domain={[0, 100]} />
+                  <Tooltip contentStyle={{ background: 'rgba(8,18,35,0.96)', border: '1px solid rgba(90,130,255,0.3)', borderRadius: 8, fontSize: 12 }} />
+                  <Area yAxisId="left" type="monotone" dataKey="price" stroke="#ef4444" strokeWidth={2} fill="url(#priceGrad)" name="Brent Crude ($/bbl)" />
+                  <Area yAxisId="right" type="monotone" dataKey="supply" stroke="#00e5ff" strokeWidth={2} fill="url(#supplyGrad)" name="SPR Capacity (%)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </GlassCard>
+          )}
+
+          {/* AI Recommendation */}
+          {displayRecommendation && (
+            <GlassCard style={{ background: 'rgba(0,229,255,0.04)', borderColor: 'rgba(0,229,255,0.25)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <Bot size={16} style={{ color: '#00e5ff' }} />
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#00e5ff' }}>UrjaNetra AI Strategic Recommendation</span>
+              </div>
+              <p style={{ fontSize: 13, color: 'var(--text-main)', lineHeight: 1.7, marginBottom: 14 }}>
+                {displayRecommendation}
+              </p>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <button className="btn btn-success btn-sm" onClick={() => addToast('Action plan approved', 'success')}>
+                  <CheckCircle size={13} /> Approve Action Plan
+                </button>
+                <button className="btn btn-warning btn-sm" onClick={() => handleActivateScenario(selected)} disabled={activating}>
+                  <Zap size={13} /> Activate System Baseline
+                </button>
+              </div>
             </GlassCard>
           )}
         </div>
@@ -301,7 +444,6 @@ export default function ScenarioSimulator() {
 
       <style>{`
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
       `}</style>
     </DashboardLayout>
   );

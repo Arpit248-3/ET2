@@ -99,7 +99,10 @@ export const fetchRisk = async () => {
 
 // ─── Economic Impact ───────────────────────────────────────────────────────
 export const fetchEconomicImpact = async (options = {}) => {
-  const query = options.recalculate ? '?recalculate=true' : '';
+  const params = new URLSearchParams();
+  if (options.scenario_id) params.append('scenario_id', options.scenario_id);
+  if (options.recalculate) params.append('recalculate', 'true');
+  const query = params.toString() ? `?${params.toString()}` : '';
   const data = await apiFetch(`/economic-impact${query}`);
   return adaptEconomicImpact(data);
 };

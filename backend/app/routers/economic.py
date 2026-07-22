@@ -25,11 +25,11 @@ class EconomicExplainRequest(BaseModel):
     question: Optional[str] = None
 
 
-def _active_economic_result(db: Session) -> Dict[str, Any]:
+def _active_economic_result(db: Session, scenario_id: Optional[str] = None) -> Dict[str, Any]:
     state = db.query(ScenarioState).filter(ScenarioState.id == 1).first()
-    scenario_id = state.active_scenario_id if state else None
+    target_scenario_id = scenario_id or (state.active_scenario_id if state else None)
     demo_step = state.demo_step if state else 0
-    return get_economic_impact(scenario_id, demo_step)
+    return get_economic_impact(target_scenario_id, demo_step)
 
 
 def _fallback_economic_explanation(econ_data: Dict[str, Any]) -> str:
@@ -53,9 +53,8 @@ def _fallback_economic_explanation(econ_data: Dict[str, Any]) -> str:
 
 
 @router.get("/economic-impact", response_model=EconomicResponse)
-def get_economic(recalculate: bool = False, db: Session = Depends(get_db)):
-    # recalculate is retained for UI compatibility. The engine is deterministic.
-    return _active_economic_result(db)
+def get_economic(scenario_id: Optional[str] = None, recalculate: bool = False, db: Session = Depends(get_db)):
+    return _active_economic_result(db, scenario_id=scenario_id)
 
 
 @router.post("/ai/economic-explain")
