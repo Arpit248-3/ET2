@@ -39,7 +39,6 @@ export default function DashboardLayout({ children, crisisMode = false }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { demoState, timelineData, refreshState } = useScenario();
-  const { warnCountdown, logout } = useAuth();
   
   const [demoActive, setDemoActive] = useState(false);
   const [stepIdx, setStepIdx] = useState(0);
@@ -218,56 +217,7 @@ export default function DashboardLayout({ children, crisisMode = false }) {
       <div className="main-content">
         <Topbar crisisMode={crisisMode} />
 
-        {/* ── Inactivity Warning Banner ─────────────────────────────────── */}
-        {warnCountdown !== null && (
-          <div style={{
-            position: 'fixed', top: 0, left: 0, right: 0, zIndex: 999999,
-            background: warnCountdown <= 10
-              ? 'linear-gradient(90deg, rgba(220,38,38,0.95), rgba(239,68,68,0.9))'
-              : 'linear-gradient(90deg, rgba(180,83,9,0.95), rgba(245,158,11,0.9))',
-            backdropFilter: 'blur(8px)',
-            borderBottom: `1px solid ${warnCountdown <= 10 ? 'rgba(239,68,68,0.6)' : 'rgba(245,158,11,0.6)'}`,
-            padding: '10px 20px',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
-            animation: 'fadeIn 0.3s ease',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 18 }}>{warnCountdown <= 10 ? '🚨' : '⚠️'}</span>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', letterSpacing: '0.03em' }}>
-                  {warnCountdown <= 10 ? 'SECURITY LOCKOUT IMMINENT' : 'SESSION INACTIVITY WARNING'}
-                </div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.85)', marginTop: 1 }}>
-                  Auto-logout in <strong>{warnCountdown}s</strong> due to inactivity.
-                  Move your mouse or press a key to stay logged in.
-                </div>
-              </div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              {/* Circular countdown */}
-              <div style={{
-                width: 40, height: 40, borderRadius: '50%',
-                border: `3px solid ${warnCountdown <= 10 ? '#fca5a5' : '#fde68a'}`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontWeight: 800, fontSize: 14, color: '#fff',
-                background: 'rgba(0,0,0,0.25)',
-                fontFamily: 'monospace',
-                boxShadow: warnCountdown <= 10 ? '0 0 12px rgba(239,68,68,0.6)' : 'none',
-              }}>
-                {warnCountdown}
-              </div>
-              <button onClick={() => logout()} style={{
-                padding: '5px 14px', background: 'rgba(0,0,0,0.3)',
-                border: '1px solid rgba(255,255,255,0.3)', borderRadius: 7,
-                color: '#fff', fontSize: 11, fontWeight: 600, cursor: 'pointer',
-                fontFamily: 'inherit',
-              }}>Logout Now</button>
-            </div>
-          </div>
-        )}
-
-        <div className="page-content" style={{ paddingBottom: demoActive ? 110 : 24, paddingTop: warnCountdown !== null ? 52 : undefined }}>
+        <div className="page-content" style={{ paddingBottom: demoActive ? 110 : 24 }}>
           {children}
         </div>
       </div>
