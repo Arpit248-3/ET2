@@ -209,7 +209,11 @@ export default function CommandCenter() {
 
   const displayIncidents = liveIncidents || defaultIncidents;
 
-  // Normalize backend time_series or active scenario parameters into dynamic chart shape
+  // Dynamic calculation for oil price graph & tickers matching active scenario
+  const activeSpike = activeScenario?.crude_price_spike_usd || (activeScenario?.brent_shock_usd ? activeScenario.brent_shock_usd - 88.0 : (activeScenario ? 15.0 : 0.0));
+  const basePrice = activeScenario?.brent_baseline_usd || 88.0;
+
+  // 30-Day Crude Price Curve (Brent, Indian Basket, WTI) with genuine non-linear shock curve
   const displayTimeSeries = (() => {
     const rawTimeSeries = econData?.time_series || econData?.projection;
     if (rawTimeSeries && rawTimeSeries.length > 0) {
@@ -219,35 +223,32 @@ export default function CommandCenter() {
         .filter((_, i) => i % step === 0)
         .slice(0, 7)
         .map((pt, i) => {
-          const price = pt.brent ?? pt.crude_price_usd ?? (88.0 + i * 2.5);
+          const price = pt.brent ?? pt.crude_price_usd ?? (basePrice + activeSpike * (i / 6.0));
           return {
-            month: pt.month || `Day ${pt.day ?? i * 5}`,
+            month: pt.month || `D+${pt.day ?? i * 5}`,
             brent: Number(price.toFixed(1)),
-            indianBasket: Number((price * 0.95).toFixed(1)),
-            wti: Number((price * 0.92).toFixed(1)),
-            import: pt.import_bill_increase_usd_bn ?? 4.2,
+            indianBasket: Number((price * 0.955).toFixed(1)),
+            wti: Number((price * 0.925).toFixed(1)),
+            import: pt.import_bill_increase_usd_bn ?? Number((price * 0.048).toFixed(1)),
           };
         });
     }
 
-    if (activeScenario) {
-      const base = activeScenario.brent_baseline_usd || 88.0;
-      const spike = activeScenario.crude_price_spike_usd || (activeScenario.brent_shock_usd ? activeScenario.brent_shock_usd - base : 15.0);
-      const points = [0, 5, 10, 15, 20, 25, 30];
-      return points.map(d => {
-        const shockFactor = d <= 5 ? d / 5.0 : d <= 15 ? 1.0 : Math.max(0.2, 1.0 - (d - 15) / 15.0 * 0.5);
-        const currBrent = base + spike * shockFactor;
-        return {
-          month: `Day ${d}`,
-          brent: Number(currBrent.toFixed(1)),
-          indianBasket: Number((currBrent * 0.95).toFixed(1)),
-          wti: Number((currBrent * 0.92).toFixed(1)),
-          import: Number((currBrent * 0.05).toFixed(1)),
-        };
-      });
-    }
+    // Dynamic curve generation for active scenario
+    const dayMilestones = [0, 5, 10, 15, 20, 25, 30];
+    const shockMultipliers = [0.0, 1.15, 1.08, 0.85, 0.60, 0.35, 0.15]; // Non-flat realistic shock curve
 
-    return defaultTimeSeries;
+    return dayMilestones.map((d, idx) => {
+      const mult = activeScenario ? shockMultipliers[idx] : 0.0;
+      const currentBrent = basePrice + activeSpike * mult;
+      return {
+        month: `D+${d}`,
+        brent: Number(currentBrent.toFixed(1)),
+        indianBasket: Number((currentBrent * 0.955).toFixed(1)),
+        wti: Number((currentBrent * 0.925).toFixed(1)),
+        import: Number((currentBrent * 0.048).toFixed(1)),
+      };
+    });
   })();
 
   const crisisColor = displayRisk >= 80 ? '#ef4444' : displayRisk >= 60 ? '#f59e0b' : '#22c55e';
@@ -258,13 +259,27 @@ export default function CommandCenter() {
     || systemState?.ai_recommendation
     || 'Reroute 2 cargo via Cape of Good Hope. Initiate West Africa negotiations. Draw SPR 5M bbl.';
 
-  // Live prices
-  const baseBrent = systemState?.brent_price ?? 88.0;
-  const brentChange = activeScenario ? '+6.8%' : '+0.0%';
-  const indianBasketPrice = baseBrent * 0.95;
-  const indianBasketChange = activeScenario ? '+5.4%' : '+0.0%';
-  const wtiPrice = baseBrent * 0.92;
-  const wtiChange = activeScenario ? '+4.9%' : '+0.0%';
+  // Dynamic Live Prices & Ticker Indicators
+  const peakBrent = activeScenario ? (basePrice + activeSpike * 1.15) : (systemState?.brent_price || 88.0);
+  const baseBrent = activeScenario ? (basePrice + activeSpike) : (systemState?.brent_price || 88.0);
+  const brentChange = activeScenario ? `+${((activeSpike / basePrice) * 100).toFixed(1)}%` : '+0.0%';
+  const indianBasketPrice = baseBrent * 0.955;
+  const indianBasketChange = activeScenario ? `+${(((activeSpike * 0.955) / (basePrice * 0.955)) * 100).toFixed(1)}%` : '+0.0%';
+  const wtiPrice = baseBrent * 0.925;
+  const wtiChange = activeScenario ? `+${(((activeSpike * 0.925) / (basePrice * 0.925)) * 100).toFixed(1)}%` : '+0.0%';
+
+  // Dynamic scenario-based event driver milestones for bottom info strip
+  const dynamicEvents = activeScenario ? [
+    { event: `🔴 ${activeScenario.name.slice(0, 18)}`, date: 'D+0 Shock', impact: `+$${activeSpike.toFixed(1)}/bbl surge`, color: '#ef4444' },
+    { event: '⚠️ Peak Price Spike', date: 'D+5 Peak', impact: `Brent $${peakBrent.toFixed(1)}/bbl`, color: '#f59e0b' },
+    { event: '🛢️ SPR Release Bridge', date: 'D+15 Mitigation', impact: `-$${(activeSpike * 0.3).toFixed(1)}/bbl relief`, color: '#1d8cff' },
+    { event: '🚢 Cape Reroute Docking', date: 'D+30 Stabilization', impact: 'Supply gap closed', color: '#22c55e' },
+  ] : [
+    { event: '🟢 Nominal Import Flow', date: 'Baseline', impact: '4.2M bbl/day', color: '#22c55e' },
+    { event: '⚠️ Chokepoint Watch', date: 'Real-time', impact: 'Zero blockades', color: '#f59e0b' },
+    { event: '📈 Demand Index', date: 'Steady', impact: 'Normal refinery run', color: '#1d8cff' },
+    { event: '🛢️ SPR Cavern Reserve', date: 'Optimal', impact: '64 Days coverage', color: '#a855f7' },
+  ];
 
   return (
     <DashboardLayout>
@@ -530,14 +545,9 @@ export default function CommandCenter() {
             )}
           </div>
 
-          {/* Bottom info strip */}
+          {/* Dynamic Scenario Event Drivers Strip */}
           <div style={{ display: 'flex', gap: 14, marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--border-soft)' }}>
-            {[
-              { event: '🔴 OPEC Cut', date: 'Mar 2024', impact: '-0.8M bbl/day', color: '#ef4444' },
-              { event: '⚠️ Hormuz Tension', date: 'May 2024', impact: '+$6.2/bbl spike', color: '#f59e0b' },
-              { event: '📈 India Demand Peak', date: 'Jun 2024', impact: '+4.2M bbl/day', color: '#22c55e' },
-              { event: '🛢️ SPR Release', date: 'Jul 2024', impact: '-$2.1/bbl relief', color: '#1d8cff' },
-            ].map(e => (
+            {dynamicEvents.map(e => (
               <div key={e.event} style={{ flex: 1, borderLeft: `2px solid ${e.color}40`, paddingLeft: 8 }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: e.color, marginBottom: 1 }}>{e.event}</div>
                 <div style={{ fontSize: 9.5, color: 'var(--text-dim)', marginBottom: 1 }}>{e.date}</div>
