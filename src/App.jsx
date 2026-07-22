@@ -52,11 +52,6 @@ function ProtectedRoute({ children, adminOnly = false }) {
   if (adminOnly && !isAdmin) {
     return <Navigate to="/command-center" replace />;
   }
-  
-  // If user is Admin, they should stay in Admin Portal
-  if (isAdmin && window.location.pathname !== '/admin') {
-    return <Navigate to="/admin" replace />;
-  }
 
   return children;
 }
