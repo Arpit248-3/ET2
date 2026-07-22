@@ -62,9 +62,9 @@ function AppRoutes() {
       <Route path="/login" element={isAuthenticated ? <Navigate to="/command-center" replace /> : <Login />} />
       <Route path="/register" element={isAuthenticated ? <Navigate to="/command-center" replace /> : <Register />} />
 
-      {/* Default Entry — redirect to login if not authenticated */}
-      <Route path="/" element={<Navigate to={isAuthenticated ? "/command-center" : "/login"} replace />} />
-      <Route path="/home" element={<Navigate to={isAuthenticated ? "/command-center" : "/login"} replace />} />
+      {/* Default Entry — always /login on fresh load; auth is memory-only so refresh = login */}
+      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="/home" element={<Navigate to="/login" replace />} />
 
       {/* Protected Dashboard Routes */}
       <Route path="/command-center" element={<ProtectedRoute><CommandCenter /></ProtectedRoute>} />
