@@ -48,9 +48,36 @@ def seed():
         # Seed initial users
         if db.query(DBUser).count() == 0:
             users = [
-                DBUser(id="arjun_mehta", name="Arjun Mehta", email="arjun.mehta@nemc.gov.in", role="Commander", status="ACTIVE", avatar="AM"),
-                DBUser(id="sneha_sharma", name="Sneha Sharma", email="sneha.sharma@nemc.gov.in", role="Resilience Analyst", status="ACTIVE", avatar="SS"),
-                DBUser(id="vikram_singh", name="Vikram Singh", email="vikram.singh@nemc.gov.in", role="Security Director", status="ACTIVE", avatar="VS"),
+                DBUser(
+                    id="arjun_mehta", name="Arjun Mehta",
+                    email="arjun.mehta@nemc.gov.in",
+                    role="National Energy Commander",
+                    phone="+91 98100 00001",
+                    designation="Commander, NEMC",
+                    department="NEMC Command",
+                    clearance_level="LEVEL-5 COSMIC TOP SECRET",
+                    status="ACTIVE", avatar="AM"
+                ),
+                DBUser(
+                    id="sneha_sharma", name="Sneha Sharma",
+                    email="sneha.sharma@nemc.gov.in",
+                    role="Risk Intelligence Analyst",
+                    phone="+91 98200 00002",
+                    designation="Senior Analyst",
+                    department="Risk Intelligence Division",
+                    clearance_level="LEVEL-3 CONFIDENTIAL",
+                    status="ACTIVE", avatar="SS"
+                ),
+                DBUser(
+                    id="vikram_singh", name="Vikram Singh",
+                    email="vikram.singh@nemc.gov.in",
+                    role="SPR Administrator",
+                    phone="+91 98300 00003",
+                    designation="SPR Director",
+                    department="Strategic Petroleum Reserve",
+                    clearance_level="LEVEL-4 SECRET",
+                    status="ACTIVE", avatar="VS"
+                ),
             ]
             for u in users:
                 db.add(u)

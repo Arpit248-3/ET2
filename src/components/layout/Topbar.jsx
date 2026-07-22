@@ -2,13 +2,20 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Bell, HelpCircle, ChevronDown, AlertOctagon, X, Zap, LogOut } from 'lucide-react';
 import ScenarioSwitcher from '../ui/ScenarioSwitcher.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
 
-
-// User identity — pulled from backend profile in future auth flow
-const sessionUser = { name: 'Arjun Mehta', role: 'Commander, NEMC', avatar: 'AM' };
 
 export default function Topbar({ crisisMode = false }) {
   const navigate = useNavigate();
+  const { currentUser, logout } = useAuth();
+
+  // Derive display values from AuthContext
+  const sessionUser = {
+    name: currentUser?.name || 'Operator',
+    role: currentUser?.designation || currentUser?.role || 'NEMC Operator',
+    avatar: currentUser?.avatar || (currentUser?.name?.slice(0, 2).toUpperCase()) || 'OP',
+  };
+
 
   const [showAlert, setShowAlert] = useState(false);
 
@@ -157,7 +164,7 @@ export default function Topbar({ crisisMode = false }) {
                   </button>
                 ))}
                 <div style={{ height: 1, background: 'var(--border-soft)', margin: '4px 0' }} />
-                <button onClick={() => navigate('/command-center')} style={{
+                <button onClick={() => { logout(); }} style={{
                   display: 'flex', alignItems: 'center', gap: 9, width: '100%',
                   padding: '8px 10px', borderRadius: 7, border: 'none', background: 'none',
                   color: '#f87171', fontSize: 12.5, fontWeight: 600, cursor: 'pointer',

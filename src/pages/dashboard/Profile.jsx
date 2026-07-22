@@ -6,6 +6,7 @@ import PageHeader from '../../components/ui/PageHeader.jsx';
 import { fetchProfile, updateProfile, updateProfilePreferences } from '../../services/api.js';
 import { useToast } from '../../components/ui/Toast.jsx';
 import { useScenario } from '../../context/ScenarioContext.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
 
 const recentActivity = [
   { action: 'Approved SPR Drawdown MOT-2024-031', time: '09:12 today', type: 'Decision' },
@@ -18,13 +19,21 @@ const recentActivity = [
 export default function Profile() {
   const { backendOnline } = useScenario();
   const { addToast } = useToast();
+  const { currentUser, updateUser: updateAuthUser } = useAuth();
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);
-  
+
+  // Seed profile from AuthContext real user data
   const [profile, setProfile] = useState({
-    name: 'Arjun Mehta', email: 'arjun.mehta@nemc.gov.in', phone: '+91 98100 00001',
-    dept: 'National Energy Management Council', location: 'New Delhi, India',
-    bio: 'Commander at NEMC with 18 years of experience in energy policy, crisis management, and strategic reserves planning.',
+    name: currentUser?.name || 'Arjun Mehta',
+    email: currentUser?.email || 'arjun.mehta@nemc.gov.in',
+    phone: currentUser?.phone || '+91 98100 00001',
+    dept: currentUser?.department || 'National Energy Management Council',
+    role: currentUser?.role || 'National Energy Commander',
+    clearance_level: currentUser?.clearance_level || 'LEVEL-5 COSMIC TOP SECRET',
+    designation: currentUser?.designation || 'Commander, NEMC',
+    location: 'New Delhi, India',
+    bio: `${currentUser?.role || 'Commander'} at NEMC. Clearance: ${currentUser?.clearance_level || 'LEVEL-5'}. Department: ${currentUser?.department || 'Operations'}.`,
   });
   const [preferences, setPreferences] = useState({ theme: 'dark', notifications_enabled: true });
   const [form, setForm] = useState({ ...profile });
@@ -32,28 +41,27 @@ export default function Profile() {
   const loadProfileData = async () => {
     setLoading(true);
     try {
-      const data = await fetchProfile();
-      if (data) {
-        setProfile(prev => ({
-          ...prev,
-          name: data.name || prev.name,
-          email: data.email || prev.email,
-          phone: data.phone || prev.phone,
-          dept: data.department || prev.dept,
-          location: data.location || prev.location,
-          bio: data.bio || prev.bio,
-        }));
-        setForm(prev => ({
-          ...prev,
-          name: data.name || prev.name,
-          email: data.email || prev.email,
-          phone: data.phone || prev.phone,
-          dept: data.department || prev.dept,
-          location: data.location || prev.location,
-          bio: data.bio || prev.bio,
-        }));
-        if (data.preferences) {
-          setPreferences(data.preferences);
+      // Prefer real auth user data over API
+      if (currentUser) {
+        const merged = {
+          name: currentUser.name,
+          email: currentUser.email,
+          phone: currentUser.phone || '',
+          dept: currentUser.department || 'Operations',
+          role: currentUser.role,
+          clearance_level: currentUser.clearance_level || 'LEVEL-2',
+          designation: currentUser.designation || currentUser.role,
+          location: 'New Delhi, India',
+          bio: `${currentUser.role} at NEMC. Clearance: ${currentUser.clearance_level}. Department: ${currentUser.department}.`,
+        };
+        setProfile(merged);
+        setForm(merged);
+      } else {
+        const data = await fetchProfile();
+        if (data) {
+          setProfile(prev => ({ ...prev, name: data.name || prev.name, email: data.email || prev.email }));
+          setForm(prev => ({ ...prev, name: data.name || prev.name, email: data.email || prev.email }));
+          if (data.preferences) setPreferences(data.preferences);
         }
       }
     } catch (err) {

@@ -60,10 +60,28 @@ class DBUser(Base):
 
     id = Column(String, primary_key=True, index=True)
     name = Column(String, nullable=False)
-    email = Column(String, nullable=False)
+    email = Column(String, nullable=False, unique=True)
     role = Column(String, nullable=False)
     status = Column(String, default="ACTIVE")
     avatar = Column(String, nullable=True)
+    phone = Column(String, nullable=True)
+    designation = Column(String, nullable=True)
+    department = Column(String, nullable=True)
+    clearance_level = Column(String, nullable=True, default="LEVEL-2")
+    joined_at = Column(DateTime(timezone=True), server_default=func.now())
+    last_login = Column(DateTime(timezone=True), nullable=True)
+
+
+class DBUserAuth(Base):
+    """Hashed credentials for platform users (separate from profile)."""
+    __tablename__ = "user_auth"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(String, nullable=False, unique=True, index=True)
+    email = Column(String, nullable=False, unique=True, index=True)
+    hashed_password = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class DBReport(Base):

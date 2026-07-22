@@ -29,15 +29,40 @@ export default function UserManagement() {
   const loadUsers = async () => {
     setLoading(true);
     try {
+      // First try real registered users from auth endpoint
+      const authRes = await fetch('http://localhost:8000/api/auth/all-users');
+      if (authRes.ok) {
+        const authData = await authRes.json();
+        if (authData.users && Array.isArray(authData.users)) {
+          const mapped = authData.users.map((u) => ({
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            phone: u.phone || '—',
+            role: u.role,
+            dept: u.department || u.role,
+            designation: u.designation || u.role,
+            clearance: u.clearance_level || 'LEVEL-2',
+            status: u.status || 'ACTIVE',
+            lastLogin: u.last_login ? new Date(u.last_login).toLocaleString() : 'First login pending',
+            joinedAt: u.joined_at ? new Date(u.joined_at).toLocaleDateString() : '—',
+            avatar: u.avatar || u.name?.slice(0, 2).toUpperCase() || 'US'
+          }));
+          setUsersList(mapped);
+          return;
+        }
+      }
+      // Fallback to original users API
       const data = await fetchUsers();
       if (data && Array.isArray(data)) {
         const mapped = data.map((u) => ({
           id: u.id,
           name: u.name,
           email: u.email,
+          phone: u.phone || '—',
           role: u.role,
           dept: u.role === 'Commander' ? 'NEMC' : 'Operations',
-          clearance: u.role === 'Commander' ? 'TOP SECRET' : 'SECRET',
+          clearance: u.clearance_level || (u.role === 'Commander' ? 'LEVEL-5' : 'LEVEL-2'),
           status: u.status || 'ACTIVE',
           lastLogin: 'Just now',
           avatar: u.avatar || 'US'

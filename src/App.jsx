@@ -3,6 +3,14 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastProvider } from './components/ui/Toast.jsx';
 import { ScenarioProvider } from './context/ScenarioContext.jsx';
 import { PipelineProvider } from './context/PipelineContext.jsx';
+import { AuthProvider, useAuth } from './context/AuthContext.jsx';
+import { CallProvider } from './context/CallContext.jsx';
+
+// Auth Pages
+import Login from './pages/auth/Login.jsx';
+import Register from './pages/auth/Register.jsx';
+
+// Dashboard Pages
 import CommandCenter from './pages/dashboard/CommandCenter.jsx';
 import RiskIntelligence from './pages/dashboard/RiskIntelligence.jsx';
 import SupplyChainTwin from './pages/dashboard/SupplyChainTwin.jsx';
@@ -31,63 +39,82 @@ import CrisisMode from './pages/dashboard/CrisisMode.jsx';
 import DemoMode from './pages/dashboard/DemoMode.jsx';
 import ThresholdsAlerts from './pages/dashboard/ThresholdsAlerts.jsx';
 
-import { CallProvider } from './context/CallContext.jsx';
+// Protected Route wrapper
+function ProtectedRoute({ children }) {
+  const { isAuthenticated } = useAuth();
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+}
 
-export default function App() {
+function AppRoutes() {
+  const { isAuthenticated } = useAuth();
+
   React.useEffect(() => {
     const isDark = localStorage.getItem('urja_dark_mode') !== 'false';
     document.body.classList.toggle('light-theme', !isDark);
   }, []);
 
   return (
-    <ToastProvider>
-      <CallProvider>
-        <BrowserRouter>
-          <PipelineProvider>
-            <ScenarioProvider>
-            <Routes>
-              {/* Default Entry Point: Command Center */}
-              <Route path="/" element={<Navigate to="/command-center" replace />} />
-              <Route path="/home" element={<Navigate to="/command-center" replace />} />
-              <Route path="/login" element={<Navigate to="/command-center" replace />} />
-              <Route path="/register" element={<Navigate to="/command-center" replace />} />
+    <Routes>
+      {/* Auth Routes */}
+      <Route path="/login" element={isAuthenticated ? <Navigate to="/command-center" replace /> : <Login />} />
+      <Route path="/register" element={isAuthenticated ? <Navigate to="/command-center" replace /> : <Register />} />
 
-              {/* Direct Dashboard Routes */}
-              <Route path="/command-center" element={<CommandCenter />} />
-              <Route path="/risk-intelligence" element={<RiskIntelligence />} />
-              <Route path="/supply-chain-twin" element={<SupplyChainTwin />} />
-              <Route path="/scenario-simulator" element={<ScenarioSimulator />} />
-              <Route path="/economic-impact" element={<EconomicImpact />} />
-              <Route path="/procurement-optimizer" element={<ProcurementOptimizer />} />
-              <Route path="/refinery-compatibility" element={<RefineryCompatibility />} />
-              <Route path="/spr-planner" element={<SPRPlanner />} />
-              <Route path="/compliance-shield" element={<ComplianceShield />} />
-              <Route path="/red-team-validator" element={<RedTeamValidator />} />
-              <Route path="/action-brief" element={<ActionBrief />} />
-              <Route path="/ai-copilot" element={<AICopilot />} />
-              <Route path="/explainable-ai" element={<ExplainableAI />} />
-              <Route path="/executive-decision-board" element={<ExecutiveDecisionBoard />} />
-              <Route path="/notifications" element={<Notifications />} />
-              <Route path="/reports" element={<ReportsLibrary />} />
-              <Route path="/audit-logs" element={<AuditLogs />} />
-              <Route path="/user-management" element={<UserManagement />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/timeline-replay" element={<TimelineReplay />} />
-              <Route path="/collaboration-room" element={<CollaborationRoom />} />
-              <Route path="/data-sources" element={<DataSources />} />
-              <Route path="/help" element={<HelpCenter />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/crisis-mode" element={<CrisisMode />} />
-              <Route path="/demo-mode" element={<DemoMode />} />
-              <Route path="/settings/thresholds-alerts" element={<ThresholdsAlerts />} />
+      {/* Default Entry — redirect to login if not authenticated */}
+      <Route path="/" element={<Navigate to={isAuthenticated ? "/command-center" : "/login"} replace />} />
+      <Route path="/home" element={<Navigate to={isAuthenticated ? "/command-center" : "/login"} replace />} />
 
-              {/* Catch-all redirect to Command Center */}
-              <Route path="*" element={<Navigate to="/command-center" replace />} />
-            </Routes>
-          </ScenarioProvider>
-        </PipelineProvider>
-      </BrowserRouter>
-      </CallProvider>
-    </ToastProvider>
+      {/* Protected Dashboard Routes */}
+      <Route path="/command-center" element={<ProtectedRoute><CommandCenter /></ProtectedRoute>} />
+      <Route path="/risk-intelligence" element={<ProtectedRoute><RiskIntelligence /></ProtectedRoute>} />
+      <Route path="/supply-chain-twin" element={<ProtectedRoute><SupplyChainTwin /></ProtectedRoute>} />
+      <Route path="/scenario-simulator" element={<ProtectedRoute><ScenarioSimulator /></ProtectedRoute>} />
+      <Route path="/economic-impact" element={<ProtectedRoute><EconomicImpact /></ProtectedRoute>} />
+      <Route path="/procurement-optimizer" element={<ProtectedRoute><ProcurementOptimizer /></ProtectedRoute>} />
+      <Route path="/refinery-compatibility" element={<ProtectedRoute><RefineryCompatibility /></ProtectedRoute>} />
+      <Route path="/spr-planner" element={<ProtectedRoute><SPRPlanner /></ProtectedRoute>} />
+      <Route path="/compliance-shield" element={<ProtectedRoute><ComplianceShield /></ProtectedRoute>} />
+      <Route path="/red-team-validator" element={<ProtectedRoute><RedTeamValidator /></ProtectedRoute>} />
+      <Route path="/action-brief" element={<ProtectedRoute><ActionBrief /></ProtectedRoute>} />
+      <Route path="/ai-copilot" element={<ProtectedRoute><AICopilot /></ProtectedRoute>} />
+      <Route path="/explainable-ai" element={<ProtectedRoute><ExplainableAI /></ProtectedRoute>} />
+      <Route path="/executive-decision-board" element={<ProtectedRoute><ExecutiveDecisionBoard /></ProtectedRoute>} />
+      <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+      <Route path="/reports" element={<ProtectedRoute><ReportsLibrary /></ProtectedRoute>} />
+      <Route path="/audit-logs" element={<ProtectedRoute><AuditLogs /></ProtectedRoute>} />
+      <Route path="/user-management" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
+      <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+      <Route path="/timeline-replay" element={<ProtectedRoute><TimelineReplay /></ProtectedRoute>} />
+      <Route path="/collaboration-room" element={<ProtectedRoute><CollaborationRoom /></ProtectedRoute>} />
+      <Route path="/data-sources" element={<ProtectedRoute><DataSources /></ProtectedRoute>} />
+      <Route path="/help" element={<ProtectedRoute><HelpCenter /></ProtectedRoute>} />
+      <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+      <Route path="/crisis-mode" element={<ProtectedRoute><CrisisMode /></ProtectedRoute>} />
+      <Route path="/demo-mode" element={<ProtectedRoute><DemoMode /></ProtectedRoute>} />
+      <Route path="/settings/thresholds-alerts" element={<ProtectedRoute><ThresholdsAlerts /></ProtectedRoute>} />
+
+      {/* Catch-all */}
+      <Route path="*" element={<Navigate to={isAuthenticated ? "/command-center" : "/login"} replace />} />
+    </Routes>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <ToastProvider>
+        <CallProvider>
+          <BrowserRouter>
+            <PipelineProvider>
+              <ScenarioProvider>
+                <AppRoutes />
+              </ScenarioProvider>
+            </PipelineProvider>
+          </BrowserRouter>
+        </CallProvider>
+      </ToastProvider>
+    </AuthProvider>
   );
 }

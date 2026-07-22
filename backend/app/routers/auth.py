@@ -1,17 +1,73 @@
 """
-Authentication Router — Login, MFA Verification, Session Token & Identity Probes.
+Authentication Router — Registration, Login, MFA Verification, Session Token & Identity Probes.
+Fully connected to SQLite DB with hashed passwords via passlib[bcrypt].
 """
 from fastapi import APIRouter, Depends, HTTPException, Header
-from pydantic import BaseModel
-from typing import Optional
+from pydantic import BaseModel, EmailStr
+from typing import Optional, List
+from datetime import datetime, timezone
 import time
+import uuid
 
 router = APIRouter()
+
+# ─── Password hashing (passlib bcrypt) ────────────────────────────────────────
+try:
+    from passlib.context import CryptContext
+    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    def hash_password(password: str) -> str:
+        return pwd_context.hash(password)
+    def verify_password(plain: str, hashed: str) -> bool:
+        return pwd_context.verify(plain, hashed)
+except ImportError:
+    # Fallback if passlib not installed: simple hash (dev mode only)
+    import hashlib
+    def hash_password(password: str) -> str:
+        return "sha256:" + hashlib.sha256(password.encode()).hexdigest()
+    def verify_password(plain: str, hashed: str) -> bool:
+        return hashed == "sha256:" + hashlib.sha256(plain.encode()).hexdigest()
+
+
+# ─── Role → Clearance Level Mapping ──────────────────────────────────────────
+ROLE_CLEARANCE = {
+    "National Energy Commander":         "LEVEL-5 COSMIC TOP SECRET",
+    "Executive Director (Cabinet Level)": "LEVEL-5 EYES ONLY",
+    "SPR Administrator":                 "LEVEL-4 SECRET",
+    "Procurement Director":              "LEVEL-4 SECRET",
+    "Risk Intelligence Analyst":         "LEVEL-3 CONFIDENTIAL",
+    "Compliance Officer":                "LEVEL-3 CONFIDENTIAL",
+    "Logistics Operator":                "LEVEL-2 RESTRICTED",
+    "Observer":                          "LEVEL-1 UNCLASSIFIED",
+}
+
+ROLE_PERMISSIONS = {
+    "National Energy Commander":         ["read:all", "write:all", "execute:all", "override:crisis"],
+    "Executive Director (Cabinet Level)": ["read:all", "write:approvals", "execute:crisis_activation"],
+    "SPR Administrator":                 ["read:spr", "write:spr_drawdown", "execute:override"],
+    "Procurement Director":              ["read:procurement", "write:procurement", "execute:route_approval"],
+    "Risk Intelligence Analyst":         ["read:risk", "write:risk_signals", "execute:simulation"],
+    "Compliance Officer":                ["read:compliance", "write:compliance_flags"],
+    "Logistics Operator":                ["read:routes", "write:procurement", "execute:simulation"],
+    "Observer":                          ["read:dashboard"],
+}
+
+
+# ─── Request / Response Schemas ───────────────────────────────────────────────
+class RegisterRequest(BaseModel):
+    full_name: str
+    email: str
+    phone: str
+    password: str
+    role: str = "Logistics Operator"
+    department: str = "Operations"
+    designation: Optional[str] = None
+
 
 class LoginRequest(BaseModel):
     email: str
     password: str
     role: Optional[str] = "Logistics Operator"
+
 
 class VerifyMFARequest(BaseModel):
     email: str
@@ -19,71 +75,234 @@ class VerifyMFARequest(BaseModel):
     session_ticket: str
     role: Optional[str] = "Logistics Operator"
 
-# Mock identity database
-ROLES_PERMISSIONS = {
-    "Logistics Operator": ["read:routes", "write:procurement", "execute:simulation"],
-    "SPR Administrator": ["read:spr", "write:spr_drawdown", "execute:override"],
-    "Executive Director": ["read:all", "write:approvals", "execute:crisis_activation"],
-}
 
-@router.post("/login")
-def login(req: LoginRequest):
+# ─── Register Endpoint ────────────────────────────────────────────────────────
+@router.post("/register")
+def register(req: RegisterRequest):
+    from app.database import SessionLocal
+    from app.models import DBUser, DBUserAuth
+
     if not req.email or "@" not in req.email:
         raise HTTPException(status_code=400, detail="Invalid email format.")
-    
+    if len(req.password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters.")
+    if not req.full_name.strip():
+        raise HTTPException(status_code=400, detail="Full name is required.")
+
+    db = SessionLocal()
+    try:
+        # Check if email already registered
+        existing = db.query(DBUser).filter(DBUser.email == req.email).first()
+        if existing:
+            raise HTTPException(status_code=409, detail="Email already registered. Please log in.")
+
+        # Assign clearance level based on role
+        clearance = ROLE_CLEARANCE.get(req.role, "LEVEL-2 RESTRICTED")
+        designation = req.designation or req.role
+
+        # Create user ID
+        user_id = f"usr_{uuid.uuid4().hex[:12]}"
+
+        # Create avatar initials from name
+        initials = "".join([p[0].upper() for p in req.full_name.split()[:2]])
+
+        # Save user profile
+        new_user = DBUser(
+            id=user_id,
+            name=req.full_name,
+            email=req.email,
+            role=req.role,
+            phone=req.phone,
+            designation=designation,
+            department=req.department,
+            clearance_level=clearance,
+            status="ACTIVE",
+            avatar=initials,
+            joined_at=datetime.now(timezone.utc),
+        )
+        db.add(new_user)
+
+        # Save hashed password in auth table
+        hashed_pw = hash_password(req.password)
+        auth_record = DBUserAuth(
+            user_id=user_id,
+            email=req.email,
+            hashed_password=hashed_pw,
+        )
+        db.add(auth_record)
+        db.commit()
+        db.refresh(new_user)
+
+        # Auto-login: generate token
+        token = f"urja_jwt_{int(time.time())}_{hash(req.email) % 999999}"
+
+        return {
+            "success": True,
+            "message": f"Operator {req.full_name} registered and deployed to UrjaNetra NEMC.",
+            "token": token,
+            "user": {
+                "id": user_id,
+                "name": req.full_name,
+                "email": req.email,
+                "role": req.role,
+                "phone": req.phone,
+                "designation": designation,
+                "department": req.department,
+                "clearance_level": clearance,
+                "permissions": ROLE_PERMISSIONS.get(req.role, ROLE_PERMISSIONS["Logistics Operator"]),
+                "avatar": initials,
+                "joined_at": new_user.joined_at.isoformat() if new_user.joined_at else None,
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
+    finally:
+        db.close()
+
+
+# ─── Login Endpoint ───────────────────────────────────────────────────────────
+@router.post("/login")
+def login(req: LoginRequest):
+    from app.database import SessionLocal
+    from app.models import DBUser, DBUserAuth
+
+    if not req.email or "@" not in req.email:
+        raise HTTPException(status_code=400, detail="Invalid email format.")
     if len(req.password) < 4:
-        raise HTTPException(status_code=401, detail="Invalid credentials. Password too short.")
+        raise HTTPException(status_code=401, detail="Invalid credentials.")
 
-    # Generate temporary session ticket requiring MFA
-    ticket = f"mfa_ticket_{int(time.time())}_{hash(req.email) % 100000}"
-    
-    return {
-        "success": True,
-        "mfa_required": True,
-        "session_ticket": ticket,
-        "email": req.email,
-        "role": req.role,
-        "message": "Step 1 Authentication successful. Enter 6-digit TOTP code."
-    }
+    db = SessionLocal()
+    try:
+        user = db.query(DBUser).filter(DBUser.email == req.email).first()
+        auth = db.query(DBUserAuth).filter(DBUserAuth.email == req.email).first()
 
+        # If user exists in DB, verify password
+        if user and auth:
+            if not verify_password(req.password, auth.hashed_password):
+                raise HTTPException(status_code=401, detail="Invalid credentials. Check your email and password.")
+            # Update last login
+            user.last_login = datetime.now(timezone.utc)
+            db.commit()
+
+        # Generate MFA session ticket
+        ticket = f"mfa_ticket_{int(time.time())}_{hash(req.email) % 100000}"
+
+        return {
+            "success": True,
+            "mfa_required": True,
+            "session_ticket": ticket,
+            "email": req.email,
+            "role": user.role if user else req.role,
+            "message": "Step 1 Authentication successful. Enter 6-digit TOTP code."
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Login error: {str(e)}")
+    finally:
+        db.close()
+
+
+# ─── MFA Verification ─────────────────────────────────────────────────────────
 @router.post("/verify-mfa")
 def verify_mfa(req: VerifyMFARequest):
+    from app.database import SessionLocal
+    from app.models import DBUser
+
     if len(req.code) != 6 or not req.code.isdigit():
-        raise HTTPException(status_code=400, detail="Invalid TOTP code. Must be a 6-digit number.")
+        raise HTTPException(status_code=400, detail="Invalid TOTP code. Must be 6 digits.")
 
-    # Generate mock JWT bearer token
-    token = f"urja_jwt_{int(time.time())}_{hash(req.email) % 999999}"
-    
-    # Deriving user name from email
-    name_parts = req.email.split("@")[0].replace(".", " ").title()
-    name = name_parts if name_parts else "Operator Arjun Mehta"
+    db = SessionLocal()
+    try:
+        user = db.query(DBUser).filter(DBUser.email == req.email).first()
+        token = f"urja_jwt_{int(time.time())}_{hash(req.email) % 999999}"
 
-    return {
-        "success": True,
-        "token": token,
-        "user": {
-            "name": name,
-            "email": req.email,
-            "role": req.role,
-            "permissions": ROLES_PERMISSIONS.get(req.role, ROLES_PERMISSIONS["Logistics Operator"]),
-            "last_login": time.strftime("%Y-%m-%d %H:%M:%S UTC"),
-            "clearance_level": "LEVEL-5 EYES ONLY",
+        if user:
+            return {
+                "success": True,
+                "token": token,
+                "user": {
+                    "id": user.id,
+                    "name": user.name,
+                    "email": user.email,
+                    "role": user.role,
+                    "phone": user.phone or "",
+                    "designation": user.designation or user.role,
+                    "department": user.department or "Operations",
+                    "clearance_level": user.clearance_level or "LEVEL-2 RESTRICTED",
+                    "permissions": ROLE_PERMISSIONS.get(user.role, ROLE_PERMISSIONS["Logistics Operator"]),
+                    "avatar": user.avatar or user.name[:2].upper(),
+                    "joined_at": user.joined_at.isoformat() if user.joined_at else None,
+                    "last_login": user.last_login.isoformat() if user.last_login else None,
+                }
+            }
+
+        # Fallback for demo/seed users
+        name = req.email.split("@")[0].replace(".", " ").title()
+        clearance = ROLE_CLEARANCE.get(req.role, "LEVEL-2 RESTRICTED")
+        return {
+            "success": True,
+            "token": token,
+            "user": {
+                "id": f"demo_{hash(req.email) % 99999}",
+                "name": name,
+                "email": req.email,
+                "role": req.role,
+                "phone": "",
+                "designation": req.role,
+                "department": "Operations",
+                "clearance_level": clearance,
+                "permissions": ROLE_PERMISSIONS.get(req.role, ROLE_PERMISSIONS["Logistics Operator"]),
+                "avatar": name[:2].upper(),
+                "joined_at": datetime.now(timezone.utc).isoformat(),
+                "last_login": datetime.now(timezone.utc).isoformat(),
+            }
         }
-    }
+    finally:
+        db.close()
 
+
+# ─── Get Current User ─────────────────────────────────────────────────────────
 @router.get("/me")
 def get_current_user(authorization: Optional[str] = Header(None)):
     if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Unauthorized session. Missing or invalid authorization token.")
-
+        raise HTTPException(status_code=401, detail="Unauthorized. Missing or invalid token.")
     token = authorization.split(" ")[1]
-    return {
-        "success": True,
-        "token": token,
-        "user": {
-            "name": "Arjun Mehta",
-            "email": "arjun.mehta@nemc.gov.in",
-            "role": "Commander, NEMC",
-            "clearance_level": "LEVEL-5 EYES ONLY",
+    return {"success": True, "token": token, "status": "authenticated"}
+
+
+# ─── Get All Registered Users (User Management) ───────────────────────────────
+@router.get("/all-users")
+def get_all_users():
+    from app.database import SessionLocal
+    from app.models import DBUser
+
+    db = SessionLocal()
+    try:
+        users = db.query(DBUser).all()
+        return {
+            "success": True,
+            "users": [
+                {
+                    "id": u.id,
+                    "name": u.name,
+                    "email": u.email,
+                    "role": u.role,
+                    "phone": u.phone or "",
+                    "designation": u.designation or u.role,
+                    "department": u.department or "Operations",
+                    "clearance_level": u.clearance_level or "LEVEL-2",
+                    "status": u.status,
+                    "avatar": u.avatar or u.name[:2].upper(),
+                    "joined_at": u.joined_at.isoformat() if u.joined_at else None,
+                    "last_login": u.last_login.isoformat() if u.last_login else None,
+                }
+                for u in users
+            ],
+            "total": len(users)
         }
-    }
+    finally:
+        db.close()
