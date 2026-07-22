@@ -254,10 +254,52 @@ export default function ProcurementOptimizer() {
     finally { setApproving(false); }
   };
 
+  const handleSelectAndActivateSupplier = (row) => {
+    setSelectedSupplier(row);
+    const supName = (row?.supplier || '').toLowerCase();
+    let routeId = 'west_africa';
+    if (supName.includes('saudi') || supName.includes('aramco')) routeId = 'saudi_hormuz';
+    else if (supName.includes('brazil') || supName.includes('petrobras')) routeId = 'brazil_atlantic';
+    else if (supName.includes('uae') || supName.includes('adnoc')) routeId = 'uae_hormuz';
+    else if (supName.includes('russia') || supName.includes('rosneft')) routeId = 'russia_arctic';
+    else if (supName.includes('usa') || supName.includes('wti')) routeId = 'usa_wti';
+    else routeId = 'west_africa';
+
+    const payload = {
+      route_id: routeId,
+      route_name: `${row.route} (${row.supplier} Corridor)`,
+      supplier: row.supplier,
+      destination_port: 'Jamnagar / Vadinar Terminal',
+      eta_days: parseInt(row.eta) || 22,
+      landed_cost: row.landedCost || '$84.2/bbl',
+      risk_score: row.riskScore || 18,
+      approved_by: 'Commander Arjun Mehta, NEMC'
+    };
+
+    try {
+      if (backendOnline) {
+        approveProcurementRoute(payload).catch(err => console.warn('Backend route approval error:', err));
+      }
+      localStorage.setItem('urja_approved_route', JSON.stringify(payload));
+      window.dispatchEvent(new CustomEvent('urja-route-approved', { detail: payload }));
+    } catch (e) {
+      console.warn('LocalStorage save error:', e);
+    }
+    addToast(`Selected & Activated Route: ${row.supplier} (${row.route})`, 'info');
+  };
+
   const handleApproveSpecificRoute = async (sup) => {
     setApproving(true);
     const targetSup = sup || selectedRow || displaySuppliers[0];
-    const routeId = (targetSup?.route || '').toLowerCase().includes('cape') ? 'cape_of_good_hope' : ((targetSup?.route || '').toLowerCase().includes('atlantic') ? 'atlantic_corridor' : 'hormuz_corridor');
+    const supName = (targetSup?.supplier || '').toLowerCase();
+    let routeId = 'west_africa';
+    if (supName.includes('saudi') || supName.includes('aramco')) routeId = 'saudi_hormuz';
+    else if (supName.includes('brazil') || supName.includes('petrobras')) routeId = 'brazil_atlantic';
+    else if (supName.includes('uae') || supName.includes('adnoc')) routeId = 'uae_hormuz';
+    else if (supName.includes('russia') || supName.includes('rosneft')) routeId = 'russia_arctic';
+    else if (supName.includes('usa') || supName.includes('wti')) routeId = 'usa_wti';
+    else routeId = 'west_africa';
+
     const payload = {
       route_id: routeId,
       route_name: `${targetSup?.route} (${targetSup?.supplier} Corridor)`,
@@ -408,7 +450,7 @@ export default function ProcurementOptimizer() {
             <DataTable
               columns={cols}
               data={displaySuppliers}
-              onRowClick={row => { setSelectedSupplier(row); addToast(`Selected: ${row.supplier}`, 'info'); }}
+              onRowClick={row => handleSelectAndActivateSupplier(row)}
             />
           </div>
         </GlassCard>

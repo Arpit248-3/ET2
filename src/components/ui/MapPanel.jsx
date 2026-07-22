@@ -494,33 +494,63 @@ export default function MapPanel({
         markersRef.current.push({ marker, type, risk: riskStr, name: label, lat, lng });
       });
 
-      // 2. Draw pipelines and sea routes (Dynamic Backend Approved Route Connected)
-      const isCapeApproved = (approvedRouteState?.route_id === 'cape_of_good_hope') ||
-                             (approvedRouteState?.route_id === 'atlantic_corridor') ||
-                             (approvedRouteState?.route_name || '').toLowerCase().includes('cape') ||
-                             (approvedRouteState?.supplier || '').toLowerCase().includes('africa') ||
-                             (approvedRouteState?.supplier || '').toLowerCase().includes('brazil');
+      // 2. Draw pipelines and sea routes (6 Distinct Geographically Accurate Routes)
+      const ALL_MARITIME_ROUTES = {
+        west_africa: [ // West Africa (Lagos) -> Cape of Good Hope -> Open Arabian Sea -> Vadinar (WEST of Sri Lanka & India, ZERO land cutting)
+          [4.3, 6.2],         // Lagos / West Africa Port
+          [-12.0, 5.0],       // South Atlantic
+          [-34.8, 20.0],      // Cape of Good Hope
+          [-25.0, 38.0],      // Mozambique Channel
+          [-10.0, 55.0],      // Western Indian Ocean
+          [5.5, 73.0],        // Laccadive Sea / Open Arabian Sea (WEST of Sri Lanka, NO LAND CUTTING)
+          [12.0, 70.0],       // Open Arabian Sea
+          [20.5, 70.8],       // Gulf of Khambhat Entrance
+          [22.3072, 73.1812]  // Jamnagar / Vadinar Terminal
+        ],
+        saudi_hormuz: [ // Basra / Ras Tanura -> Persian Gulf -> Strait of Hormuz -> Vadinar
+          [27.0, 50.0],       // Ras Tanura / Persian Gulf
+          [26.5, 53.0],
+          [26.4, 56.5],       // Strait of Hormuz
+          [24.5, 58.5],       // Gulf of Oman
+          [20.0, 65.0],       // Arabian Sea
+          [22.3072, 73.1812]  // Jamnagar / Vadinar Terminal
+        ],
+        brazil_atlantic: [ // Santos Brazil -> Cape of Good Hope -> Arabian Sea -> Mangaluru -> Vadinar
+          [-23.9, -46.3],     // Santos Port, Brazil
+          [-34.8, 20.0],      // Cape of Good Hope
+          [-15.0, 55.0],      // Indian Ocean
+          [2.0, 65.0],        // Equator Crossing
+          [10.0, 71.0],       // Open Arabian Sea (WEST of India)
+          [12.8698, 74.8431], // Mangaluru Port
+          [22.3072, 73.1812]  // Jamnagar / Vadinar Terminal
+        ],
+        uae_hormuz: [ // Fujairah Port (Gulf of Oman bypass) -> Vadinar
+          [25.3, 56.3],       // Fujairah Port
+          [24.0, 59.0],       // Gulf of Oman
+          [20.0, 65.0],       // Open Arabian Sea
+          [22.3072, 73.1812]  // Jamnagar / Vadinar Terminal
+        ],
+        russia_arctic: [ // Murmansk / Baltic -> Atlantic -> Cape of Good Hope -> Vadinar
+          [68.97, 33.07],     // Murmansk / Arctic Port
+          [58.0, 3.0],        // North Sea
+          [35.0, -15.0],      // Atlantic Ocean
+          [-34.8, 20.0],      // Cape of Good Hope
+          [0.0, 65.0],        // Indian Ocean
+          [15.0, 70.0],       // Open Arabian Sea
+          [22.3072, 73.1812]  // Jamnagar / Vadinar Terminal
+        ],
+        usa_wti: [ // Houston / US Gulf -> Atlantic -> Cape -> Kochi & Vadinar
+          [29.7, -95.3],      // Houston Port, US Gulf
+          [24.5, -80.5],      // Straits of Florida
+          [15.0, -45.0],      // Atlantic Ocean
+          [-34.8, 20.0],      // Cape of Good Hope
+          [2.0, 65.0],        // Indian Ocean
+          [9.9312, 76.2673],  // Kochi Port
+          [22.3072, 73.1812]  // Jamnagar / Vadinar Terminal
+        ]
+      };
 
       const routeCoords = {
-        r1: [ // Strait of Hormuz (Persian Gulf to Vadinar/Jamnagar)
-          [30.5081, 47.7835],
-          [29.1, 49.0],
-          [27.0, 52.0],
-          [26.4, 56.5],
-          [25.0, 58.0],
-          [21.0, 65.0],
-          [22.3072, 73.1812]
-        ],
-        r2: [ // Cape of Good Hope (West Africa / Bonny Light to Paradip / Jamnagar)
-          [4.3, 6.2],
-          [-10.0, 10.0],
-          [-34.8, 20.0],
-          [-25.0, 38.0],
-          [-10.0, 55.0],
-          [2.0, 68.0],
-          [12.8698, 74.8431],
-          [20.3117, 85.8180]
-        ],
         r3: [ // Mumbai to Jamnagar pipeline
           [19.0760, 72.8777],
           [20.5, 72.9],
@@ -547,48 +577,73 @@ export default function MapPanel({
         polylinesRef.current.push(p4);
       }
 
+      // Determine active route key & color based on selected/approved route
+      const routeId = (approvedRouteState?.route_id || '').toLowerCase();
+      const supName = (approvedRouteState?.supplier || '').toLowerCase();
+      const routeName = (approvedRouteState?.route_name || '').toLowerCase();
+
+      let activeRouteKey = 'west_africa';
+      let activeColor = '#22c55e'; // Green default
+
+      if (routeId.includes('saudi') || supName.includes('saudi') || supName.includes('aramco')) {
+        activeRouteKey = 'saudi_hormuz';
+        activeColor = '#00e5ff';
+      } else if (routeId.includes('brazil') || supName.includes('brazil') || supName.includes('petrobras')) {
+        activeRouteKey = 'brazil_atlantic';
+        activeColor = '#a855f7';
+      } else if (routeId.includes('uae') || supName.includes('uae') || supName.includes('adnoc')) {
+        activeRouteKey = 'uae_hormuz';
+        activeColor = '#3b82f6';
+      } else if (routeId.includes('russia') || supName.includes('russia') || supName.includes('rosneft')) {
+        activeRouteKey = 'russia_arctic';
+        activeColor = '#ec4899';
+      } else if (routeId.includes('usa') || supName.includes('usa') || supName.includes('wti')) {
+        activeRouteKey = 'usa_wti';
+        activeColor = '#eab308';
+      } else {
+        activeRouteKey = 'west_africa';
+        activeColor = '#22c55e';
+      }
+
+      const activeRouteWaypoints = ALL_MARITIME_ROUTES[activeRouteKey];
+
       // Draw Sea Routes
       if (layers.ships) {
-        if (isCapeApproved) {
-          // APPROVED ALTERNATIVE ROUTE: Cape of Good Hope (Bright Neon Green Flow)
-          const p2_base = L.polyline(routeCoords.r2, { color: '#22c55e', weight: 6, opacity: 0.25 }).addTo(leafletMapRef.current);
-          polylinesRef.current.push(p2_base);
-          const p2 = L.polyline(routeCoords.r2, { color: '#22c55e', weight: 2.5, dashArray: '3, 8', className: 'urja-approved-sea-flow', opacity: 0.95 }).addTo(leafletMapRef.current);
-          polylinesRef.current.push(p2);
+        // Base glow polyline for active route
+        const active_base = L.polyline(activeRouteWaypoints, { color: activeColor, weight: 6, opacity: 0.25 }).addTo(leafletMapRef.current);
+        polylinesRef.current.push(active_base);
 
-          // RESTRICTED HORMUZ ROUTE: Red Dotted Caution Line
-          const p1_base = L.polyline(routeCoords.r1, { color: '#ef4444', weight: 4, opacity: 0.15 }).addTo(leafletMapRef.current);
-          polylinesRef.current.push(p1_base);
-          const p1 = L.polyline(routeCoords.r1, { color: '#ef4444', weight: 1.5, dashArray: '4, 8', opacity: 0.65 }).addTo(leafletMapRef.current);
-          polylinesRef.current.push(p1);
-        } else {
-          const p1_base = L.polyline(routeCoords.r1, { color: '#00e5ff', weight: 5, opacity: 0.12 }).addTo(leafletMapRef.current);
-          polylinesRef.current.push(p1_base);
-          const p2_base = L.polyline(routeCoords.r2, { color: '#00e5ff', weight: 5, opacity: 0.12 }).addTo(leafletMapRef.current);
-          polylinesRef.current.push(p2_base);
+        // Active flow line for active route
+        const active_flow = L.polyline(activeRouteWaypoints, { color: activeColor, weight: 2.5, dashArray: '3, 8', className: 'urja-approved-sea-flow', opacity: 0.95 }).addTo(leafletMapRef.current);
+        polylinesRef.current.push(active_flow);
 
-          const p1 = L.polyline(routeCoords.r1, { color: '#00e5ff', weight: 1.5, dashArray: '2, 6', className: 'urja-sea-flow', opacity: 0.9 }).addTo(leafletMapRef.current);
-          polylinesRef.current.push(p1);
-          const p2 = L.polyline(routeCoords.r2, { color: '#00e5ff', weight: 1.5, dashArray: '2, 6', className: 'urja-sea-flow', opacity: 0.9 }).addTo(leafletMapRef.current);
-          polylinesRef.current.push(p2);
+        // If active route is NOT Saudi/UAE Hormuz, draw Hormuz as red caution restricted line
+        if (!activeRouteKey.includes('hormuz')) {
+          const hormuz_base = L.polyline(ALL_MARITIME_ROUTES.saudi_hormuz, { color: '#ef4444', weight: 4, opacity: 0.15 }).addTo(leafletMapRef.current);
+          polylinesRef.current.push(hormuz_base);
+          const hormuz_caution = L.polyline(ALL_MARITIME_ROUTES.saudi_hormuz, { color: '#ef4444', weight: 1.5, dashArray: '4, 8', opacity: 0.65 }).addTo(leafletMapRef.current);
+          polylinesRef.current.push(hormuz_caution);
         }
       }
 
-      // 3. Draw Ships (Dynamic Animation along Approved Route)
+      // 3. Draw Ships (Dynamic Animation along Selected Approved Route Waypoints)
       if (layers.ships) {
+        const displaySupplierLabel = approvedRouteState?.supplier || 'Selected Supplier';
+        const displayRouteLabel = approvedRouteState?.route_name || 'Active Approved Route';
+        const displayLandedCost = approvedRouteState?.landed_cost || '$84.2/bbl';
+        const displayEta = approvedRouteState?.eta_days || 22;
+
         const activeShipList = (ships && ships.length > 0) ? ships : [
-          { name: "VLCC Samudra Defender", status: "IN TRANSIT", route: isCapeApproved ? "West Africa ➜ Cape of Good Hope ➜ Paradip" : "Persian Gulf ➜ Kochi" },
-          { name: "MT Rajendra", status: "IN TRANSIT", route: isCapeApproved ? "Bonny Light ➜ Cape of Good Hope ➜ Vadinar" : "Basra ➜ Vadinar" },
-          { name: "MT Chola Express", status: "IN TRANSIT", route: isCapeApproved ? "Atlantic Corridor ➜ Cape of Good Hope ➜ Mangaluru" : "Riyadh ➜ Kochi" },
-          { name: "MT Atlantic Pioneer", status: "IN TRANSIT", route: isCapeApproved ? "Petrobras Santos ➜ Atlantic ➜ Kochi" : "Sikka ➜ Haldia" },
+          { name: "VLCC Samudra Defender", status: "IN TRANSIT" },
+          { name: "MT Rajendra", status: "IN TRANSIT" },
+          { name: "MT Chola Express", status: "IN TRANSIT" },
+          { name: "MT Atlantic Pioneer", status: "IN TRANSIT" },
         ];
 
         activeShipList.forEach((ship, idx) => {
           const name = ship.name || ship.label;
           const status = ship.status || 'IN TRANSIT';
-          
-          let coords = isCapeApproved ? routeCoords.r2 : routeCoords.r1;
-          if (idx % 2 === 1 && !isCapeApproved) coords = routeCoords.r2;
+          const coords = activeRouteWaypoints;
 
           const startPos = coords[0];
           const isLightInit = document.body.classList.contains('light-theme');
@@ -603,29 +658,23 @@ export default function MapPanel({
           const marker = L.marker(startPos, { icon: shipIcon });
           marker.addTo(leafletMapRef.current);
 
-          const activeRouteLabel = isCapeApproved ? "Cape of Good Hope (APPROVED & ACTIVE)" : "Strait of Hormuz Corridor";
-
           marker.bindTooltip(`
             <div class="urja-tooltip">
-              <div class="urja-tt-header" style="border-bottom:1px solid rgba(0,229,255,0.2);padding-bottom:6px;margin-bottom:6px;">
-                <span class="urja-tt-dot" style="background:${isCapeApproved ? '#22c55e' : '#00e5ff'};color:${isCapeApproved ? '#22c55e' : '#00e5ff'};box-shadow:0 0 8px ${isCapeApproved ? '#22c55e' : '#00e5ff'}"></span>
-                <span class="urja-tt-name" style="color:${isCapeApproved ? '#22c55e' : '#00e5ff'}">${name}</span>
+              <div class="urja-tt-header" style="border-bottom:1px solid ${activeColor}40;padding-bottom:6px;margin-bottom:6px;">
+                <span class="urja-tt-dot" style="background:${activeColor};color:${activeColor};box-shadow:0 0 8px ${activeColor}"></span>
+                <span class="urja-tt-name" style="color:${activeColor}">${name}</span>
               </div>
               <div class="urja-tt-row">
-                <span class="urja-tt-label">Status</span>
-                <span class="urja-tt-val" style="color:#22c55e;font-weight:700">${status}</span>
+                <span class="urja-tt-label">Supplier</span>
+                <span class="urja-tt-val" style="color:#ffffff;font-weight:700">${displaySupplierLabel}</span>
               </div>
               <div class="urja-tt-row">
-                <span class="urja-tt-label">Approved Corridor</span>
-                <span class="urja-tt-val" style="font-size:10px;color:#22c55e;font-weight:700">${activeRouteLabel}</span>
+                <span class="urja-tt-label">Active Corridor</span>
+                <span class="urja-tt-val" style="font-size:10px;color:${activeColor};font-weight:700">${displayRouteLabel}</span>
               </div>
               <div class="urja-tt-row">
-                <span class="urja-tt-label">Cargo Slate</span>
-                <span class="urja-tt-val">2.4M bbl Sweet Crude</span>
-              </div>
-              <div class="urja-tt-row">
-                <span class="urja-tt-label">Speed / ETA</span>
-                <span class="urja-tt-val" style="color:#00e5ff">14.8 knots · 22 days</span>
+                <span class="urja-tt-label">Landed Cost / ETA</span>
+                <span class="urja-tt-val" style="color:#00e5ff">${displayLandedCost} · ${displayEta} days</span>
               </div>
             </div>`, {
             className: 'urja-tooltip-wrapper',
