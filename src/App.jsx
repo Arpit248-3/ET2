@@ -3,9 +3,6 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastProvider } from './components/ui/Toast.jsx';
 import { ScenarioProvider } from './context/ScenarioContext.jsx';
 import { PipelineProvider } from './context/PipelineContext.jsx';
-import Hero from './pages/public/Hero.jsx';
-import Login from './pages/public/Login.jsx';
-import Register from './pages/public/Register.jsx';
 import CommandCenter from './pages/dashboard/CommandCenter.jsx';
 import RiskIntelligence from './pages/dashboard/RiskIntelligence.jsx';
 import SupplyChainTwin from './pages/dashboard/SupplyChainTwin.jsx';
@@ -46,10 +43,13 @@ export default function App() {
         <PipelineProvider>
           <ScenarioProvider>
             <Routes>
+              {/* Default Entry Point: Command Center */}
               <Route path="/" element={<Navigate to="/command-center" replace />} />
               <Route path="/home" element={<Navigate to="/command-center" replace />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
+              <Route path="/login" element={<Navigate to="/command-center" replace />} />
+              <Route path="/register" element={<Navigate to="/command-center" replace />} />
+
+              {/* Direct Dashboard Routes */}
               <Route path="/command-center" element={<CommandCenter />} />
               <Route path="/risk-intelligence" element={<RiskIntelligence />} />
               <Route path="/supply-chain-twin" element={<SupplyChainTwin />} />
@@ -77,6 +77,8 @@ export default function App() {
               <Route path="/crisis-mode" element={<CrisisMode />} />
               <Route path="/demo-mode" element={<DemoMode />} />
               <Route path="/settings/thresholds-alerts" element={<ThresholdsAlerts />} />
+
+              {/* Catch-all redirect to Command Center */}
               <Route path="*" element={<Navigate to="/command-center" replace />} />
             </Routes>
           </ScenarioProvider>
@@ -85,4 +87,3 @@ export default function App() {
     </ToastProvider>
   );
 }
-

@@ -14,6 +14,7 @@ router = APIRouter()
 
 @router.get("/timeline", response_model=TimelineResponse)
 def get_timeline(db: Session = Depends(get_db)):
+    from app.core.risk_engine import calculate_risk
     state = db.query(ScenarioState).filter(ScenarioState.id == 1).first()
     scenario_id = state.active_scenario_id if state else None
     demo_step = state.demo_step if state else 0
@@ -22,10 +23,17 @@ def get_timeline(db: Session = Depends(get_db)):
         # Return default baseline timeline
         from app.data.default_timeline import DEFAULT_TIMELINE
         events = [
-            TimelineEvent(time=e["time"], event=e["event"], type=e["type"], risk=e["risk"], step=i, is_current=False)
+            TimelineEvent(
+                time=e["time"],
+                event=e["event"],
+                type=e["type"],
+                risk=calculate_risk(None, demo_step=i)["overall_score"],
+                step=i,
+                is_current=(i == demo_step)
+            )
             for i, e in enumerate(DEFAULT_TIMELINE)
         ]
-        return TimelineResponse(scenario_id=None, scenario_name=None, events=events, current_step=0)
+        return TimelineResponse(scenario_id=None, scenario_name=None, events=events, current_step=demo_step)
 
     scenario = get_scenario(scenario_id)
     if not scenario:
@@ -37,7 +45,7 @@ def get_timeline(db: Session = Depends(get_db)):
             time=e["time"],
             event=e["event"],
             type=e["type"],
-            risk=e["risk"],
+            risk=calculate_risk(scenario_id, demo_step=e["step"])["overall_score"],
             step=e["step"],
             is_current=(e["step"] == demo_step),
         )
@@ -50,3 +58,4 @@ def get_timeline(db: Session = Depends(get_db)):
         events=events,
         current_step=demo_step,
     )
+

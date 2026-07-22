@@ -26,20 +26,6 @@ const STEP_ROUTES = [
   '/executive-decision-board'
 ];
 
-const STEP_AI = [
-  'Monitoring baseline energy routes across India refinery network.',
-  'Geopolitical feeds detect abnormal escalation near Strait of Hormuz.',
-  'Risk Intelligence correlates maritime delays and insurance spikes.',
-  'Economic Impact Engine estimates fuel-price and fiscal exposure at Rs 2.4L Cr.',
-  'Scenario Simulator models Hormuz closure - 2.4M bbl/day supply gap for India.',
-  'Procurement Optimizer selects West Africa route due to lower sanctions exposure.',
-  'SPR Planner recommends calibrated 5M bbl strategic petroleum reserve drawdown.',
-  'Compliance Shield clears legal, sanctions, and policy checks for West Africa.',
-  'Red Team Validator challenges assumptions and confirms revised response plan.',
-  'AI Action Brief generates official PMO-style response brief with 4 actions.',
-  'Executive Decision Board approves procurement reroute and SPR plan.'
-];
-
 const STEP_MODULES = [
   'Command Center',
   'Risk Intelligence',
@@ -75,6 +61,112 @@ function getRiskColor(risk) {
   if (risk >= 60) return '#f97316';
   if (risk >= 40) return '#f59e0b';
   return '#22c55e';
+}
+
+// ── Fix 3: Live clock step time calculator ──────────────────────────────────
+function getLiveStepTime(stepIdx) {
+  const now = new Date();
+  // Add stepIdx * 25 minutes to current local time to create dynamic live progression
+  const stepDate = new Date(now.getTime() + stepIdx * 25 * 60 * 1000);
+  return stepDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+// ── Fix 5: Dynamic AI Context connected to live backend pipelineState ──────
+function getDynamicAIContext(stepIdx, pipelineState, fallbackEvent) {
+  if (!pipelineState) return fallbackEvent;
+  const scenarioName = pipelineState.active_scenario?.name || 'Hormuz Crisis';
+  const kpi = pipelineState.state?.kpi || {};
+  const riskScore = kpi.risk_score || 32;
+  const crisisLevel = kpi.crisis_level || 'NORMAL';
+  const supplyGap = kpi.supply_gap || '0M bbl/day';
+  const sprCov = kpi.spr_coverage || 64;
+
+  switch (stepIdx) {
+    case 0:
+      return `Monitoring baseline energy routes. Current Threat Level: ${crisisLevel} (Global Risk Score: ${riskScore}/100).`;
+    case 1:
+      return `Geopolitical feeds detect abnormal escalation under ${scenarioName}. Supply gap estimated at ${supplyGap}.`;
+    case 2:
+      return pipelineState.risk?.recommendation || `Risk Intelligence correlates maritime delays and insurance spikes near Hormuz. Overall Threat: ${riskScore}/100.`;
+    case 3:
+      return `Economic Impact Engine estimates daily fiscal impact under ${scenarioName}. Brent price benchmark at $${pipelineState.state?.brent_price || 88}/bbl.`;
+    case 4:
+      return `Scenario Simulator models ${scenarioName} — projected deficit of ${supplyGap} for Indian refineries.`;
+    case 5:
+      return pipelineState.procurement?.recommended_action || `Procurement Optimizer selects alternative supply routes bypassing high-risk zones.`;
+    case 6:
+      return pipelineState.spr?.drawdown_recommendation || `SPR Planner recommends calibrated release from Visakhapatnam & Mangaluru caverns (Current SPR: ${sprCov}%).`;
+    case 7:
+      return `Compliance Shield confirms OFAC, maritime insurance, and legal clearance for alternative crude contracts.`;
+    case 8:
+      return `Red Team Validator stress-tests resilience strategy against secondary disruptions and vessel availability.`;
+    case 9:
+      return `AI Action Brief compiles executive escalation report for PMO & Cabinet Committee on Security.`;
+    case 10:
+      return `Executive Decision Board ratifies strategic procurement rerouting and ${supplyGap} SPR drawdown.`;
+    default:
+      return fallbackEvent;
+  }
+}
+
+// ── Fix 6: SVG Mini Crisis Map with animated vector nodes ───────────────────
+function MiniCrisisMap({ riskScore }) {
+  const rc = getRiskColor(riskScore);
+  const isHigh = riskScore >= 70;
+
+  const hotspots = [
+    { name: 'Hormuz Strait', x: 45, y: 75, risk: riskScore },
+    { name: 'Jamnagar (RIL)', x: 125, y: 82, risk: Math.min(100, riskScore + 4) },
+    { name: 'Mumbai Port', x: 140, y: 110, risk: Math.max(20, riskScore - 8) },
+    { name: 'Mangaluru / Kochi', x: 165, y: 155, risk: Math.max(15, riskScore - 12) },
+    { name: 'Paradip / Vizag', x: 235, y: 105, risk: Math.max(10, riskScore - 15) },
+  ];
+
+  return (
+    <div style={{ position: 'relative', width: '100%', height: 160, background: 'rgba(8,18,35,0.6)', borderRadius: 10, border: '1px solid var(--border-soft)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <svg width="100%" height="100%" viewBox="0 0 320 180" style={{ background: 'radial-gradient(circle at 50% 50%, rgba(13,29,56,0.8), rgba(6,12,24,0.95))' }}>
+        {/* Subtle grid lines */}
+        <line x1="0" y1="45" x2="320" y2="45" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
+        <line x1="0" y1="90" x2="320" y2="90" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
+        <line x1="0" y1="135" x2="320" y2="135" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
+        <line x1="80" y1="0" x2="80" y2="180" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
+        <line x1="160" y1="0" x2="160" y2="180" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
+        <line x1="240" y1="0" x2="240" y2="180" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
+
+        {/* Stylized maritime route paths */}
+        <path d="M 45 75 Q 85 95 125 82 T 140 110 T 165 155" fill="none" stroke={rc} strokeWidth="1.8" strokeDasharray="4 3" opacity="0.85">
+          {isHigh && <animate attributeName="stroke-dashoffset" from="14" to="0" dur="1.2s" repeatCount="indefinite" />}
+        </path>
+        <path d="M 125 82 Q 180 60 235 105" fill="none" stroke="#1d8cff" strokeWidth="1.5" strokeDasharray="3 3" opacity="0.6" />
+
+        {/* India Subcontinent Simplified Outline */}
+        <path d="M 120 40 L 170 35 L 210 50 L 250 85 L 260 115 L 235 140 L 195 175 L 165 170 L 150 145 L 135 110 L 115 80 Z" fill="rgba(29,140,255,0.04)" stroke="rgba(29,140,255,0.25)" strokeWidth="1.2" />
+
+        {/* Hotspot Nodes */}
+        {hotspots.map((h, idx) => {
+          const color = getRiskColor(h.risk);
+          return (
+            <g key={idx}>
+              {/* Outer pulsing ring */}
+              <circle cx={h.x} cy={h.y} r="10" fill={color} opacity="0.2">
+                <animate attributeName="r" values="6;14;6" dur={`${1.5 + idx * 0.3}s`} repeatCount="indefinite" />
+                <animate attributeName="opacity" values="0.4;0.05;0.4" dur={`${1.5 + idx * 0.3}s`} repeatCount="indefinite" />
+              </circle>
+              {/* Center dot */}
+              <circle cx={h.x} cy={h.y} r="4" fill={color} stroke="#081223" strokeWidth="1.5" />
+              {/* Label */}
+              <text x={h.x + 7} y={h.y + 3} fill="#94a3b8" fontSize="8" fontWeight="600" fontFamily="sans-serif">{h.name}</text>
+            </g>
+          );
+        })}
+      </svg>
+      {/* Overlay info tag */}
+      <div style={{ position: 'absolute', bottom: 8, right: 10, background: 'rgba(8,18,35,0.85)', padding: '3px 8px', borderRadius: 4, border: '1px solid var(--border-soft)', fontSize: 9, color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: 5 }}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: rc }} />
+        <span>Sector Telemetry: {riskScore}/100</span>
+      </div>
+    </div>
+  );
 }
 
 export default function DemoMode() {
@@ -120,7 +212,7 @@ export default function DemoMode() {
     initScenario();
   }, [pipelineState, activateScenario]);
 
-  // Autoplay loop using nextDemoStep()
+  // ── Fix 7: Autoplay loop + Automated button click & scrolling for Live Tour ──
   useEffect(() => {
     if (localPlaying) {
       localIntervalRef.current = setInterval(async () => {
@@ -133,18 +225,33 @@ export default function DemoMode() {
         }
         try {
           await nextDemoStep();
-          // If live tour is enabled, auto navigate page-by-page
+          const nextStepIdx = currentStep + 1;
+
           if (tourType === 'live') {
-            const nextStepIdx = currentStep + 1;
-            if (STEP_ROUTES[nextStepIdx]) {
-              navigate(STEP_ROUTES[nextStepIdx]);
+            const nextRoute = STEP_ROUTES[nextStepIdx];
+            if (nextRoute) {
+              navigate(nextRoute);
+              // Automated sequence: scroll down -> click button -> scroll up
+              setTimeout(() => {
+                window.scrollTo({ top: 400, behavior: 'smooth' });
+              }, 600);
+              setTimeout(() => {
+                // Find primary or secondary button on target page to simulate interactive click
+                const btn = document.querySelector('.btn-primary') || document.querySelector('.btn-secondary');
+                if (btn && typeof btn.click === 'function') {
+                  btn.click();
+                }
+              }, 1400);
+              setTimeout(() => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }, 2200);
             }
           }
         } catch (err) {
           console.error("Autoplay advance failed:", err);
           setLocalPlaying(false);
         }
-      }, 3500);
+      }, 4000);
     } else {
       clearInterval(localIntervalRef.current);
     }
@@ -179,7 +286,7 @@ export default function DemoMode() {
     setLocalPlaying(false);
     try {
       await resetDemo();
-      addToast('Demo state reset to 09:00 baseline.', 'info');
+      addToast('Demo state reset to baseline.', 'info');
     } catch (err) {
       addToast('Failed to reset demo state.', 'error');
     }
@@ -217,10 +324,27 @@ export default function DemoMode() {
   const events = pipelineState.timeline?.events || [];
   const activeEvent = events[currentStepIdx] || { time: '09:00', event: 'No active event', risk: 24, type: 'INFO' };
   
-  const isCritical = activeEvent.risk >= 80;
-  const rc = getRiskColor(activeEvent.risk);
+  // ── Fix 4: Synchronize risk score with global backend KPI risk score ───────
+  const globalKpiRisk = pipelineState.state?.kpi?.risk_score;
+  const displayRiskScore = globalKpiRisk !== undefined ? globalKpiRisk : activeEvent.risk;
+  const isCritical = displayRiskScore >= 80;
+  const rc = getRiskColor(displayRiskScore);
 
-  const riskChartData = events.map(s => ({ time: s.time, risk: s.risk }));
+  // Dynamic live timeline events with live times & dynamic AI context
+  const liveEvents = events.map((s, idx) => ({
+    ...s,
+    time: getLiveStepTime(idx),
+    // Ensure every step's risk score is taken directly from backend calculation
+    risk: s.risk !== undefined ? s.risk : (idx === currentStepIdx ? displayRiskScore : 10),
+    aiContext: getDynamicAIContext(idx, pipelineState, s.event)
+  }));
+
+  // For the chart, replace the active step's value with the authoritative backend KPI score
+  const riskChartData = liveEvents.map((s, idx) => ({
+    time: s.time,
+    risk: idx === currentStepIdx ? displayRiskScore : s.risk,
+  }));
+
 
   return (
     <DashboardLayout>
@@ -349,7 +473,7 @@ export default function DemoMode() {
         <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10, padding: '12px 20px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
           <AlertTriangle size={18} style={{ color: '#ef4444' }} />
           <span style={{ color: '#fca5a5', fontWeight: 700, fontSize: 13 }}>
-            CRITICAL SYSTEM TRIGGER DETECTED (Risk Score: {activeEvent.risk}/100) — Escalation Plan Active
+            CRITICAL SYSTEM TRIGGER DETECTED (Risk Score: {displayRiskScore}/100) — Escalation Plan Active
           </span>
         </div>
       )}
@@ -368,7 +492,7 @@ export default function DemoMode() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Sparkles size={16} color="#00e5ff" />
             <span style={{ color: '#e2e8f0', fontSize: 13, fontWeight: 600 }}>
-              {tourType === 'live' ? 'Live Autopilot active. Redirecting through pages...' : 'Sandbox Preview active. Timeline is changing locally. Monitor widgets below.'}
+              {tourType === 'live' ? 'Live Autopilot active. Redirecting through pages with interactive clicks...' : 'Sandbox Preview active. Timeline is changing locally. Monitor widgets below.'}
             </span>
           </div>
           <button className="btn btn-secondary btn-sm" onClick={handlePauseWalkthrough} style={{ padding: '4px 12px', fontSize: 11 }}>
@@ -381,14 +505,15 @@ export default function DemoMode() {
         {/* Left: Step Info/Details */}
         <GlassCard style={{ padding: '18px 22px' }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-dim)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 16 }}>
-            Crisis Timeline Sequence ({events.length} steps)
+            Crisis Timeline Sequence ({liveEvents.length} steps)
           </div>
           <div style={{ position: 'relative' }}>
             <div style={{ position: 'absolute', left: 95, top: 0, bottom: 0, width: 2, background: 'rgba(255,255,255,0.06)' }} />
-            {events.map((s, i) => {
+            {liveEvents.map((s, i) => {
               const isActive = i === currentStepIdx;
               const isPast = i < currentStepIdx;
-              const src = getRiskColor(s.risk);
+              const stepRiskScore = isActive ? (displayRiskScore !== undefined ? displayRiskScore : s.risk) : s.risk;
+              const src = getRiskColor(stepRiskScore);
               return (
                 <div key={i} onClick={() => handleSelectStep(i)} style={{ display: 'flex', gap: 12, marginBottom: 8, cursor: 'pointer', opacity: isPast && !localPlaying ? 0.6 : 1, transition: 'all 0.2s' }}>
                   <div style={{ width: 96, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
@@ -398,9 +523,8 @@ export default function DemoMode() {
                   <div style={{ flex: 1, background: isActive ? 'rgba(29,140,255,0.07)' : 'transparent', border: isActive ? '1px solid rgba(29,140,255,0.2)' : '1px solid transparent', borderRadius: 8, padding: '8px 12px', transition: 'all 0.2s' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isActive ? 4 : 0 }}>
                       <span style={{ fontSize: 12, fontWeight: isActive ? 700 : 600, color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{s.event}</span>
-                      <span style={{ fontSize: 11, fontWeight: 800, color: src }}>{s.risk}</span>
                     </div>
-                    {isActive && <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>{STEP_AI[i] || s.event}</p>}
+                    {isActive && <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>{s.aiContext}</p>}
                   </div>
                 </div>
               );
@@ -410,10 +534,10 @@ export default function DemoMode() {
 
         {/* Right: Interactive Sandbox Timeline Widget Dashboard */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <GlassCard glow={isCritical ? 'red' : activeEvent.risk >= 60 ? 'amber' : 'blue'} style={{ padding: '16px 18px' }}>
+          <GlassCard glow={isCritical ? 'red' : displayRiskScore >= 60 ? 'amber' : 'blue'} style={{ padding: '16px 18px' }}>
             <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-dim)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>Sandbox Step Telemetry</div>
-            <div style={{ fontSize: 32, fontWeight: 800, color: rc, lineHeight: 1 }}>{activeEvent.risk}<span style={{ fontSize: 14, color: 'var(--text-dim)', fontWeight: 500 }}>/100</span></div>
-            <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 10 }}>Risk Score</div>
+            <div style={{ fontSize: 32, fontWeight: 800, color: rc, lineHeight: 1 }}>{displayRiskScore}<span style={{ fontSize: 14, color: 'var(--text-dim)', fontWeight: 500 }}>/100</span></div>
+            <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 10 }}>Backend Synced KPI Risk Score</div>
             <StatusBadge status={activeEvent.type || 'ACTIVE'} />
             <div style={{ marginTop: 10, padding: '8px 10px', background: 'rgba(0,229,255,0.05)', border: '1px solid rgba(0,229,255,0.15)', borderRadius: 8 }}>
               <div style={{ fontSize: 10, color: '#00e5ff', marginBottom: 3 }}>Active Module</div>
@@ -421,7 +545,9 @@ export default function DemoMode() {
             </div>
             <div style={{ marginTop: 8, padding: '8px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: 8 }}>
               <div style={{ fontSize: 10, color: 'var(--text-dim)', marginBottom: 3 }}>AI Context</div>
-              <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>{STEP_AI[currentStepIdx] || activeEvent.event}</p>
+              <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
+                {getDynamicAIContext(currentStepIdx, pipelineState, activeEvent.event)}
+              </p>
             </div>
             <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
               <span style={{ color: 'var(--text-dim)' }}>Confidence Level</span>
@@ -485,13 +611,13 @@ export default function DemoMode() {
           </ResponsiveContainer>
         </GlassCard>
 
+        {/* ── Mini Crisis Map SVG Card ────────────────────────────────────── */}
         <GlassCard style={{ padding: '16px 20px' }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-dim)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12 }}>Mini Crisis Map</div>
-          <div style={{ height: 150, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed var(--border-soft)', borderRadius: 8, background: 'rgba(255,255,255,0.01)' }}>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Grid sector nodes mapping at {activeEvent.time}</span>
-          </div>
+          <MiniCrisisMap riskScore={displayRiskScore} activeEvent={activeEvent} />
         </GlassCard>
       </div>
     </DashboardLayout>
   );
 }
+

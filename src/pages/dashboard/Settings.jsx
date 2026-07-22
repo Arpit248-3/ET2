@@ -99,15 +99,28 @@ export default function SettingsPage() {
     setLoading(true);
     try {
       await updateSettings({
+        email_alerts: settings.emailAlerts,
+        sms_alerts: settings.smsAlerts,
+        critical_only: settings.criticalOnly,
+        weekly_digest: settings.weeklyDigest,
+        two_factor_auth: settings.twoFactor,
+        session_timeout: parseInt(settings.sessionTimeout, 10),
+        audit_logging: settings.auditLogging,
+        api_access: settings.apiAccess,
         auto_refresh: settings.autoRefresh,
+        refresh_interval: parseInt(settings.refreshInterval, 10),
+        language: settings.language,
+        timezone: settings.timezone,
+        compact_view: settings.compactView,
+        dark_mode: settings.darkMode,
         active_security_profile: settings.twoFactor ? 'Standard NATO-Level AES256' : 'Basic',
         alert_emails: settings.emailAlerts ? 'alerts@nemc.gov.in' : null,
       });
-      setSaved(true); 
-      addToast('Settings persisted to database', 'success');
-      setTimeout(() => setSaved(false), 2000); 
+      setSaved(true);
+      addToast('All settings persisted to database successfully.', 'success');
+      setTimeout(() => setSaved(false), 2500);
     } catch (err) {
-      addToast('Failed to persist settings', 'error');
+      addToast('Failed to persist settings — backend may be offline.', 'error');
     } finally {
       setLoading(false);
     }

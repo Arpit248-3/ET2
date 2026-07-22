@@ -208,7 +208,27 @@ export default function CommandCenter() {
   const displaySanctions = liveKPIs?.active_sanctions ?? defaultKPI.activeSanctions;
 
   const displayIncidents = liveIncidents || defaultIncidents;
-  const displayTimeSeries = econData?.time_series || defaultTimeSeries;
+
+  // Normalize backend time_series (uses day/crude_price_usd keys) into chart-compatible shape
+  const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const rawTimeSeries = econData?.time_series;
+  const displayTimeSeries = (() => {
+    if (!rawTimeSeries || rawTimeSeries.length === 0) return defaultTimeSeries;
+    // If backend data has 'month' key already, use as-is
+    if (rawTimeSeries[0]?.month !== undefined) return rawTimeSeries;
+    // Backend returns 30-day projection — sample ~7 points and normalize keys
+    const step = Math.max(1, Math.floor(rawTimeSeries.length / 7));
+    return rawTimeSeries
+      .filter((_, i) => i % step === 0)
+      .slice(0, 7)
+      .map((pt, i) => ({
+        month: MONTH_LABELS[i] || `D${pt.day ?? i}`,
+        brent: pt.crude_price_usd ?? defaultTimeSeries[i]?.brent ?? 80,
+        indianBasket: pt.crude_price_usd ? +(pt.crude_price_usd * 0.95).toFixed(1) : defaultTimeSeries[i]?.indianBasket ?? 77,
+        wti: pt.crude_price_usd ? +(pt.crude_price_usd * 0.92).toFixed(1) : defaultTimeSeries[i]?.wti ?? 74,
+        import: pt.import_bill_increase_usd_bn ?? defaultTimeSeries[i]?.import ?? 4.2,
+      }));
+  })();
 
   const crisisColor = displayRisk >= 80 ? '#ef4444' : displayRisk >= 60 ? '#f59e0b' : '#22c55e';
   
@@ -281,7 +301,7 @@ export default function CommandCenter() {
       />
 
       {/* KPI Row — 6 cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14, marginBottom: 20 }}>
+      <div className="kpi-row-6" style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12, marginBottom: 18 }}>
         <MetricCard label="National Risk Score" value={String(displayRisk)} unit="/100" color={displayRisk >= 80 ? 'red' : displayRisk >= 60 ? 'amber' : 'blue'} icon={AlertTriangle} delta={8} deltaLabel="vs yesterday" />
         <MetricCard label="Crisis Level" value={displayCrisisLevel} color={displayRisk >= 80 ? 'red' : 'amber'} icon={Activity} subtitle={activeScenario?.name?.slice(0, 20) || 'Hormuz + OPEC'} valueSm />
         <MetricCard label="Active Incidents" value={String(displayActiveIncidents)} color="red" icon={Zap} delta={2} deltaLabel="new today" />
@@ -293,7 +313,7 @@ export default function CommandCenter() {
       {/* Map + Right panel */}
       <div className="responsive-map-grid">
         {/* India Map */}
-        <GlassCard style={{ padding: 0, overflow: 'hidden' }}>
+        <GlassCard style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
           <div style={{
             padding: '14px 20px', borderBottom: '1px solid var(--border-soft)',
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -315,7 +335,7 @@ export default function CommandCenter() {
               ))}
             </div>
           </div>
-          <div style={{ height: 420, position: 'relative' }}>
+          <div style={{ flex: 1, minHeight: 380, position: 'relative' }}>
             <IndiaMapSVG 
               filterType={mapFilter} 
               nodes={nodes}

@@ -146,3 +146,18 @@ class PipelineResult(Base):
     result = Column(JSON, nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
+
+class HelpTicket(Base):
+    """Stores user support inquiries and administrator responses."""
+    __tablename__ = "help_tickets"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_email = Column(String, nullable=False)
+    subject = Column(String, nullable=False)
+    message = Column(Text, nullable=False)
+    admin_reply = Column(Text, nullable=True)
+    status = Column(String, nullable=False, default="OPEN")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+

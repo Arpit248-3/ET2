@@ -153,37 +153,117 @@ REFINERY_PROFILES = [
      "coker": False, "hydrotreater": True,  "fcc": True,  "notes": "Modernised FCC with hydrotreater; good for medium-sweet grades, limited by TAN < 0.20 due to older column metallurgy."},
 ]
 
-def _calc_compatibility(crude: dict, refinery: dict) -> dict:
-    """Score 0-100 based on how well crude fits refinery metallurgy."""
-    score = 100
 
-    # API gravity penalty
-    if crude["api"] < refinery["api_min"]:
-        diff = refinery["api_min"] - crude["api"]
-        penalty = min(40, diff * 2.5) if not refinery["coker"] else min(20, diff * 1.2)
+# Refinery current utilization rates (realistic operational loads)
+REFINERY_UTILIZATION = {
+    "Jamnagar Refinery (RIL)":  0.96,  # Near max — world's largest, always running hard
+    "Paradip Refinery (IOCL)":  0.88,
+    "Kochi Refinery (BPCL)":    0.79,
+    "Mumbai Refinery (HPCL)":   0.72,  # Ageing plant, lower throughput
+    "Haldia Refinery (IOCL)":   0.83,
+}
+
+# Each refinery's historically preferred / optimal crude
+REFINERY_OPTIMAL_CRUDE = {
+    "Jamnagar Refinery (RIL)":  {"api": 33.0, "sulfur": 1.8, "tan": 0.08, "viscosity": 7.0},
+    "Paradip Refinery (IOCL)":  {"api": 32.0, "sulfur": 1.5, "tan": 0.12, "viscosity": 8.0},
+    "Kochi Refinery (BPCL)":    {"api": 36.0, "sulfur": 0.9, "tan": 0.08, "viscosity": 5.5},
+    "Mumbai Refinery (HPCL)":   {"api": 38.0, "sulfur": 0.3, "tan": 0.06, "viscosity": 4.0},
+    "Haldia Refinery (IOCL)":   {"api": 33.0, "sulfur": 1.2, "tan": 0.14, "viscosity": 9.0},
+}
+
+
+def _calc_compatibility(crude: dict, refinery: dict, active_scenario: str = None) -> dict:
+    """
+    Score 0-100 based on metallurgical and chemical fit.
+    Produces realistic 35-96% range across crude/refinery combinations.
+    """
+    score = 100.0
+    ref_name = refinery["name"]
+
+    # ── 1. API Gravity penalties ────────────────────────────────────────────────
+    api = crude["api"]
+    if api < refinery["api_min"]:
+        diff = refinery["api_min"] - api
+        # No coker = severe penalty; coker = manageable
+        penalty = min(42, diff * 3.2) if not refinery["coker"] else min(22, diff * 1.5)
         score -= penalty
-    elif crude["api"] > refinery["api_max"]:
-        diff = crude["api"] - refinery["api_max"]
-        score -= min(20, diff * 2)
+    elif api > refinery["api_max"]:
+        diff = api - refinery["api_max"]
+        score -= min(18, diff * 2.5)
 
-    # Sulfur penalty
-    if crude["sulfur"] > refinery["sulfur_max"]:
-        diff = crude["sulfur"] - refinery["sulfur_max"]
-        penalty = min(45, diff * 15) if not refinery["hydrotreater"] else min(20, diff * 7)
+    # ── 2. Sulfur content penalty ───────────────────────────────────────────────
+    sulfur = crude["sulfur"]
+    if sulfur > refinery["sulfur_max"]:
+        diff = sulfur - refinery["sulfur_max"]
+        # No hydrotreater = very heavy penalty
+        penalty = min(50, diff * 20) if not refinery["hydrotreater"] else min(22, diff * 8)
         score -= penalty
+    # Even within tolerance, high sulfur adds processing complexity
+    elif sulfur > refinery["sulfur_max"] * 0.75:
+        score -= round((sulfur / refinery["sulfur_max"]) * 3.5, 1)
 
-    # TAN (acidity) penalty
-    if crude["tan"] > refinery["tan_max"]:
-        diff = crude["tan"] - refinery["tan_max"]
-        score -= min(30, diff * 40)
+    # ── 3. TAN (acidity) — non-linear corrosion penalty ────────────────────────
+    tan = crude["tan"]
+    tan_max = refinery["tan_max"]
+    if tan > tan_max:
+        excess = tan - tan_max
+        # Non-linear: corrosion risk escalates rapidly above tolerance
+        penalty = min(35, (excess ** 1.4) * 55)
+        score -= penalty
+    elif tan > tan_max * 0.80:
+        # Within tolerance but approaching limit — minor penalty
+        score -= 4
 
-    # Viscosity penalty
-    if crude["viscosity"] > refinery["viscosity_max"]:
-        diff = crude["viscosity"] - refinery["viscosity_max"]
-        score -= min(25, diff * 0.1)
+    # ── 4. Viscosity difficulty ─────────────────────────────────────────────────
+    visc = crude["viscosity"]
+    visc_max = refinery["viscosity_max"]
+    if visc > visc_max:
+        diff = visc - visc_max
+        score -= min(28, diff * 0.12)
+    elif visc > visc_max * 0.80:
+        score -= 3
 
-    score = max(0, round(score))
-    if score >= 80:
+    # ── 5. Processing complexity vs optimal crude (deviation penalty) ───────────
+    optimal = REFINERY_OPTIMAL_CRUDE.get(ref_name, {})
+    if optimal:
+        api_dev     = abs(api - optimal["api"]) / 10
+        sulfur_dev  = abs(sulfur - optimal["sulfur"]) / 1.5
+        tan_dev     = abs(tan - optimal["tan"]) / 0.15
+        complexity  = min(14, (api_dev + sulfur_dev + tan_dev) * 3.8)
+        score -= complexity
+
+    # ── 6. Utilization factor — overloaded refineries can't handle difficult grades ─
+    util = REFINERY_UTILIZATION.get(ref_name, 0.85)
+    if util > 0.90 and (tan > 0.15 or sulfur > 1.8):
+        score -= 6  # High throughput + difficult crude = blending constraints
+
+    # ── 7. Scenario-aware operational disruption penalty ───────────────────────
+    if active_scenario == "hormuz_closure":
+        # Gulf refineries face feedstock uncertainty; West Coast ports congested
+        if ref_name in ["Jamnagar Refinery (RIL)", "Mumbai Refinery (HPCL)"]:
+            score -= 12
+        elif ref_name == "Kochi Refinery (BPCL)":
+            score -= 8
+    elif active_scenario == "port_disruption":
+        if ref_name in ["Haldia Refinery (IOCL)", "Paradip Refinery (IOCL)"]:
+            score -= 18
+    elif active_scenario == "russia_sanctions":
+        # Urals is now unavailable — non-Urals crudes see blending readjustment costs
+        if crude.get("origin") == "Russia":
+            score -= 30
+        # Refineries reliant on Urals need reconfiguration
+        if ref_name in ["Paradip Refinery (IOCL)", "Haldia Refinery (IOCL)"]:
+            score -= 8
+
+    # ── 8. Equipment bonus for challenging grades ───────────────────────────────
+    if crude["api"] < 24 and refinery["coker"]:
+        score += 6  # Coker refineries get bonus for processing heavy grades they're built for
+    if sulfur > 1.5 and refinery["hydrotreater"] and refinery["coker"]:
+        score += 4  # Full desulfurisation capability
+
+    score = max(0, min(100, round(score)))
+    if score >= 78:
         status = "COMPATIBLE"
     elif score >= 50:
         status = "PARTIAL"
@@ -191,15 +271,20 @@ def _calc_compatibility(crude: dict, refinery: dict) -> dict:
         status = "INCOMPATIBLE"
     return {"score": score, "status": status}
 
+
 @router.get("/refinery-compatibility")
-def get_refinery_compatibility(crude_type: Optional[str] = None):
+def get_refinery_compatibility(crude_type: Optional[str] = None, db: Session = Depends(get_db)):
+    # Get active scenario for scenario-aware penalties
+    state = db.query(ScenarioState).filter(ScenarioState.id == 1).first()
+    active_scenario = state.active_scenario_id if state else None
+
     crude_options = list(CRUDE_CHEMISTRY.keys())
     selected = crude_type if crude_type in crude_options else crude_options[0]
     chem = CRUDE_CHEMISTRY[selected]
 
     refineries = []
     for ref in REFINERY_PROFILES:
-        result = _calc_compatibility(chem, ref)
+        result = _calc_compatibility(chem, ref, active_scenario=active_scenario)
         refineries.append({
             "name": ref["name"],
             "location": ref["location"],
@@ -209,6 +294,7 @@ def get_refinery_compatibility(crude_type: Optional[str] = None):
             "coker": ref["coker"],
             "hydrotreater": ref["hydrotreater"],
             "notes": ref["notes"],
+            "utilization": round(REFINERY_UTILIZATION.get(ref["name"], 0.85) * 100),
         })
 
     compatibility_matrix = {
@@ -227,27 +313,38 @@ def get_refinery_compatibility(crude_type: Optional[str] = None):
     incompatible_refs = [r["name"].split(" ")[0] for r in refineries if r["status"] == "INCOMPATIBLE"]
 
     if chem["sulfur"] > 1.5:
-        sulf_note = f"High sulfur content ({chem['sulfur']}%) requires hydrotreating at all non-coker refineries."
+        sulf_note = f"High sulfur content ({chem['sulfur']}%wt) mandates hydrotreating at all non-coker sites — expect 8–12% throughput penalty."
+    elif chem["sulfur"] > 0.5:
+        sulf_note = f"Moderate sulfur ({chem['sulfur']}%wt) — within tolerance for most refineries but adds CDU overhead at HPCL Mumbai."
     else:
-        sulf_note = f"Low sulfur ({chem['sulfur']}%) — minimal desulfurisation load, suitable for most Indian refineries."
+        sulf_note = f"Sweet crude ({chem['sulfur']}%wt sulfur) — minimal desulfurisation overhead, compatible with all Indian refinery CDU configurations."
 
     if chem["api"] < 25:
-        grav_note = f"Heavy crude (API {chem['api']}) demands coker or vacuum distillation upgrade — only coker-equipped refineries should process directly."
+        grav_note = f"Heavy crude (API {chem['api']}°) demands coker or vacuum distillation. Only Jamnagar and Paradip can process directly without throughput reduction."
     elif chem["api"] > 38:
-        grav_note = f"Light crude (API {chem['api']}) yields high naphtha fraction — ideal for FCC refineries targeting petrol output."
+        grav_note = f"Light crude (API {chem['api']}°) yields high naphtha fraction. Ideal for FCC refineries; Jamnagar and Mumbai achieve best petrol yields."
     else:
-        grav_note = f"Medium gravity (API {chem['api']}) crude provides balanced distillate yield — versatile across most Indian configurations."
+        grav_note = f"Medium gravity crude (API {chem['api']}°) provides balanced distillate yield, suitable across most Indian refinery configurations."
+
+    scenario_note = ""
+    if active_scenario == "hormuz_closure":
+        scenario_note = " [CRISIS: Hormuz closure is causing West Coast port congestion — Jamnagar and Mumbai scores penalised by 8–12 points for operational risk.]"
+    elif active_scenario == "port_disruption":
+        scenario_note = " [ALERT: Port disruption is impacting Haldia and Paradip — East Coast refineries operating at reduced intake capacity.]"
+    elif active_scenario == "russia_sanctions":
+        scenario_note = " [SANCTIONS: Russian Urals is unavailable. Refineries calibrated for Urals are being reconfigured — expect 8-point processing adjustment penalty.]"
 
     blend_str = ""
     if incompatible_refs:
-        blend_str = f" For {', '.join(incompatible_refs)} refineries, blend with 30% Arab Light to reduce effective API/sulfur to within tolerance limits."
+        blend_str = f" For {', '.join(incompatible_refs)} refineries, blend with 30% Arab Light to reduce effective API/sulfur within tolerance limits."
 
     blending_advice = (
         f"{selected} ({chem['classification']}, Origin: {chem['origin']}). "
         f"{grav_note} {sulf_note} "
-        f"Recommended refineries: {', '.join(compatible_refs) if compatible_refs else 'None within tolerance'}. "
+        f"Fleet avg compatibility: {round(avg_score)}%. "
+        f"Recommended: {', '.join(compatible_refs) if compatible_refs else 'None in full tolerance'}. "
         f"Partial fit: {', '.join(partial_refs) if partial_refs else 'None'}. "
-        f"Overall fleet compatibility: {round(avg_score)}%.{blend_str}"
+        f"Incompatible: {', '.join(incompatible_refs) if incompatible_refs else 'None'}.{blend_str}{scenario_note}"
     )
 
     return {
@@ -258,6 +355,8 @@ def get_refinery_compatibility(crude_type: Optional[str] = None):
         "recommended_refineries": compatible_refs,
         "blending_advice": blending_advice,
     }
+
+
 
 
 # ─── 3. AI Copilot Query ──────────────────────────────────────────────────────

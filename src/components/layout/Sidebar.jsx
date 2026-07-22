@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+
 import {
   LayoutDashboard, AlertTriangle, Sliders, TrendingUp, ShoppingCart,
   Factory, Database, Shield, Target, FileText, Bell, BookOpen,
@@ -69,6 +70,7 @@ const navSections = [
 export default function Sidebar({ crisisMode = false }) {
   const navigate = useNavigate();
   const location = useLocation();
+
   const { pipelineState } = useScenario();
   const { data: notifData } = useApi(fetchNotifications, { fallback: null });
   const liveUnread = notifData?.unread_count ?? (notifData?.notifications ? notifData.notifications.filter(n => !n.read).length : null);
@@ -317,7 +319,7 @@ export default function Sidebar({ crisisMode = false }) {
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
             <button
               title="Home"
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/command-center')}
               style={{ width: 44, height: 36, borderRadius: 8, border: '1px solid var(--border-soft)', background: 'rgba(255,255,255,0.03)', color: 'var(--text-dim)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(29,140,255,0.1)'; e.currentTarget.style.color = '#60b4ff'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.color = 'var(--text-dim)'; }}
@@ -325,20 +327,20 @@ export default function Sidebar({ crisisMode = false }) {
               <Home size={15} />
             </button>
             <button
-              title="Logout"
-              onClick={() => { localStorage.removeItem('urja_auth'); navigate('/login'); }}
-              style={{ width: 44, height: 36, borderRadius: 8, border: '1px solid rgba(239,68,68,0.2)', background: 'rgba(239,68,68,0.05)', color: '#f87171', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.12)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'rgba(239,68,68,0.05)'}
+              title="Command Center"
+              onClick={() => navigate('/command-center')}
+              style={{ width: 44, height: 36, borderRadius: 8, border: '1px solid rgba(0,229,255,0.2)', background: 'rgba(0,229,255,0.05)', color: '#00e5ff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,229,255,0.12)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,229,255,0.05)'}
             >
-              <LogOut size={15} />
+              
             </button>
           </div>
         ) : (
           <>
             <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
               <button
-                onClick={() => navigate('/')}
+                onClick={() => navigate('/command-center')}
                 style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '7px', borderRadius: 8, border: '1px solid var(--border-soft)', background: 'rgba(255,255,255,0.03)', color: 'var(--text-dim)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11, fontWeight: 600, transition: 'all 0.15s' }}
                 onMouseEnter={e => { e.currentTarget.style.background = 'rgba(29,140,255,0.08)'; e.currentTarget.style.color = '#60b4ff'; }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.color = 'var(--text-dim)'; }}
@@ -346,12 +348,12 @@ export default function Sidebar({ crisisMode = false }) {
                 <Home size={13} /> Home
               </button>
               <button
-                onClick={() => { localStorage.removeItem('urja_auth'); navigate('/login'); }}
-                style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '7px', borderRadius: 8, border: '1px solid rgba(239,68,68,0.2)', background: 'rgba(239,68,68,0.05)', color: '#f87171', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11, fontWeight: 600, transition: 'all 0.15s' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.12)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'rgba(239,68,68,0.05)'}
+                onClick={() => navigate('/command-center')}
+                style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '7px', borderRadius: 8, border: '1px solid rgba(0,229,255,0.2)', background: 'rgba(0,229,255,0.05)', color: '#00e5ff', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11, fontWeight: 600, transition: 'all 0.15s' }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,229,255,0.12)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,229,255,0.05)'}
               >
-                <LogOut size={13} /> Logout
+                <Command size={13} /> Command
               </button>
             </div>
 

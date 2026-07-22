@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, TrendingUp, Ship, Zap, Globe, Filter, Loader, WifiOff } from 'lucide-react';
-import { RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer } from 'recharts';
+import { RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 import DashboardLayout from '../../components/layout/DashboardLayout.jsx';
 import GlassCard from '../../components/ui/GlassCard.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
@@ -61,24 +61,23 @@ export default function RiskIntelligence() {
     return comp ? Math.round(comp.value) : fallbackVal;
   };
 
-  const maritime = getComponentVal('maritime_delay', 5);
-  const sanctions = getComponentVal('sanctions_exposure', 5);
-  const opec = getComponentVal('supplier_reliability', 15);
-  const weather = getComponentVal('spr_coverage', 36);
-  const market = getComponentVal('crude_price_spike', 10);
-  const geopolitical = getComponentVal('geopolitical_risk', 20);
+  const maritime    = getComponentVal('maritime_delay', 5);
+  const sanctions   = getComponentVal('sanctions_exposure', 5);
+  const opec        = getComponentVal('supplier_reliability', 15);
+  const weather     = getComponentVal('spr_coverage', 36);
+  const market      = getComponentVal('crude_price_spike', 10);
+  const geopolitical= getComponentVal('geopolitical_risk', 20);
 
-  const radarData = riskData?.components?.map(c => ({
-    subject: c.label,
-    A: Math.round(c.value)
-  })) || [
-    { subject: 'Geopolitical Risk', A: geopolitical },
-    { subject: 'Maritime Delay Risk', A: maritime },
-    { subject: 'Crude Price Spike', A: market },
-    { subject: 'Supplier Reliability Risk', A: opec },
-    { subject: 'Sanctions Exposure', A: sanctions },
-    { subject: 'SPR Coverage Risk', A: weather },
+  // ── Exactly 5 axes for a true pentagon radar shape ─────────────────────────
+  const radarData = [
+    { subject: 'Geopolitical', A: geopolitical },
+    { subject: 'Maritime', A: maritime },
+    { subject: 'Price Volatility', A: market },
+    { subject: 'Supply Gap', A: opec },
+    { subject: 'Sanctions', A: sanctions },
   ];
+
+
 
   // Derive intelligence news feed from active risk signals
   const displaySignals = riskData?.signals ?? [];
@@ -226,7 +225,7 @@ export default function RiskIntelligence() {
               <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Zap size={14} style={{ color: '#00e5ff' }} /> Risk Radar Assessment
               </h3>
-              <p style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 0 }}>Multi-dimensional threat vector heatmap</p>
+              <p style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 0 }}>Pentagon threat vector — 5 dimensions</p>
             </div>
             <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: 'rgba(0,229,255,0.1)', color: '#00e5ff', border: '1px solid rgba(0,229,255,0.3)' }}>
               LIVE RADAR
@@ -235,17 +234,29 @@ export default function RiskIntelligence() {
 
           <div style={{ position: 'relative', margin: '0 auto' }}>
             <ResponsiveContainer width="100%" height={240}>
-              <RadarChart data={radarData} outerRadius="75%">
+              <RadarChart data={radarData} outerRadius="70%" margin={{ top: 10, right: 20, bottom: 10, left: 20 }}>
                 <defs>
                   <radialGradient id="radarGlow" cx="50%" cy="50%" r="50%">
-                    <stop offset="0%" stopColor="#00e5ff" stopOpacity={0.45} />
-                    <stop offset="70%" stopColor="#1d8cff" stopOpacity={0.2} />
+                    <stop offset="0%"   stopColor="#00e5ff" stopOpacity={0.5} />
+                    <stop offset="60%"  stopColor="#1d8cff" stopOpacity={0.25} />
                     <stop offset="100%" stopColor="#ef4444" stopOpacity={0.05} />
                   </radialGradient>
                 </defs>
-                <PolarGrid stroke="rgba(0, 229, 255, 0.2)" strokeDasharray="3 3" />
-                <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 600 }} />
-                <Radar name="Threat Vector" dataKey="A" stroke="#00e5ff" strokeWidth={2.5} fill="url(#radarGlow)" fillOpacity={0.85} dot={{ r: 4, fill: '#00e5ff', stroke: '#091527', strokeWidth: 2 }} />
+                <PolarGrid gridType="polygon" stroke="rgba(0,229,255,0.18)" strokeDasharray="3 3" />
+                <PolarAngleAxis
+                  dataKey="subject"
+                  tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 600 }}
+                />
+                <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
+                <Radar
+                  name="Threat Vector"
+                  dataKey="A"
+                  stroke="#00e5ff"
+                  strokeWidth={2.5}
+                  fill="url(#radarGlow)"
+                  fillOpacity={0.85}
+                  dot={{ r: 4, fill: '#00e5ff', stroke: '#091527', strokeWidth: 2 }}
+                />
               </RadarChart>
             </ResponsiveContainer>
           </div>
@@ -266,6 +277,7 @@ export default function RiskIntelligence() {
           </div>
         </GlassCard>
       </div>
+
 
       {/* Signal Table */}
       <GlassCard>

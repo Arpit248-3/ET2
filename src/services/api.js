@@ -273,12 +273,12 @@ export const updateThresholds = (payload) =>
 
 // ─── Demo ──────────────────────────────────────────────────────────────────
 export const fetchDemoState = async () => {
-  const data = await apiFetch('/demo');
+  const data = await apiFetch('/demo/status');
   return adaptDemoMode(data);
 };
 
 export const advanceDemoStep = async () => {
-  const data = await apiFetch('/demo/next', { method: 'POST' });
+  const data = await apiFetch('/demo/step', { method: 'POST', body: JSON.stringify({}) });
   return adaptDemoMode(data);
 };
 
@@ -288,7 +288,7 @@ export const resetDemo = async () => {
 };
 
 export const triggerDemoStep = async (stepIdx) => {
-  const data = await apiFetch(`/demo/step/${stepIdx}`, { method: 'POST' });
+  const data = await apiFetch('/demo/step', { method: 'POST', body: JSON.stringify({ step: stepIdx }) });
   return adaptDemoMode(data);
 };
 
@@ -340,17 +340,30 @@ export const refreshDataSource = (payload) =>
 
 // ─── Collaboration Rooms & Message Feed ───────────────────────────────────
 export const fetchCollabRooms = () => apiFetch('/collaboration/rooms');
-export const fetchCollabMessages = (roomId) => apiFetch(`/collaboration/rooms/${roomId}/messages`);
+export const fetchCollabMessages = (roomId) => apiFetch(`/collaboration/messages/${roomId}`);
 export const addCollabMessage = (roomId, payload) =>
-  apiFetch(`/collaboration/rooms/${roomId}/messages`, {
+  apiFetch('/collaboration/messages', {
     method: 'POST',
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ room_id: roomId, ...payload }),
   });
 export const recordCollabApproval = (payload) =>
   apiFetch('/collaboration/approvals', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
+
+// ─── WebSocket URL Helper (dynamic ws:// or wss://) ─────────────────────────
+export function getWebSocketUrl(path) {
+  const base = import.meta.env.VITE_API_BASE || '';
+  if (base) {
+    const wsBase = base.replace(/^http/, 'ws').replace('/api', '');
+    return `${wsBase}${path}`;
+  }
+  const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  const host = window.location.hostname;
+  const port = import.meta.env.VITE_WS_PORT || '8000';
+  return `${proto}://${host}:${port}${path}`;
+}
 
 // ─── User Profile Preferences ──────────────────────────────────────────────
 export const fetchProfile = () => apiFetch('/profile');
@@ -369,6 +382,39 @@ export const updateProfilePreferences = (payload) =>
 // ─── Help Center ──────────────────────────────────────────────────────────
 export const fetchHelpCenter = (query = '') =>
   apiFetch(`/help-center${query ? `?query=${encodeURIComponent(query)}` : ''}`);
+
+export const submitHelpTicket = (payload) =>
+  apiFetch('/help/tickets', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+
+export const fetchAdminTickets = () => apiFetch('/help/admin/tickets');
+
+export const replyAdminTicket = (ticketId, payload) =>
+  apiFetch(`/help/admin/tickets/${ticketId}/reply`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+
+// ─── Crisis Mode ──────────────────────────────────────────────────────────
+export const fetchCrisisStatus = () => apiFetch('/crisis/status');
+
+export const activateCrisisMode = (activate) =>
+  apiFetch('/crisis/activate', {
+    method: 'POST',
+    body: JSON.stringify({ activate }),
+  });
+
+export const uploadCrisisManifest = async (file, notes = '') => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('notes', notes);
+  const url = `${API_BASE}/crisis/upload-manifest`;
+  const res = await fetch(url, { method: 'POST', body: formData });
+  if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+  return res.json();
+};
 
 // ─── General System Settings ──────────────────────────────────────────────
 export const fetchSettings = () => apiFetch('/settings');

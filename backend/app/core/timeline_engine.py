@@ -1,11 +1,12 @@
 from typing import Any
 from app.core.scenario_engine import get_scenario
+from app.core.risk_engine import calculate_risk
 from app.pipeline.models import TimelineSection, TimelineEvent
 
 def execute(state: Any, context: Any) -> Any:
     """
     Execute Timeline Engine.
-    Resolves the scenario timeline events and updates state.timeline.
+    Resolves scenario timeline events with dynamically calculated step risk scores.
     """
     scenario_id = context.scenario_id
     demo_step = context.demo_step
@@ -17,9 +18,9 @@ def execute(state: Any, context: Any) -> Any:
                 time=e["time"],
                 event=e["event"],
                 type=e["type"],
-                risk=e["risk"],
+                risk=calculate_risk(None, demo_step=i)["overall_score"],
                 step=i,
-                is_current=False
+                is_current=(i == demo_step)
             )
             for i, e in enumerate(DEFAULT_TIMELINE)
         ]
@@ -27,7 +28,7 @@ def execute(state: Any, context: Any) -> Any:
             scenario_id=None,
             scenario_name=None,
             events=events,
-            current_step=0
+            current_step=demo_step
         )
     else:
         scenario = get_scenario(scenario_id)
@@ -45,7 +46,7 @@ def execute(state: Any, context: Any) -> Any:
                     time=e["time"],
                     event=e["event"],
                     type=e["type"],
-                    risk=e["risk"],
+                    risk=calculate_risk(scenario_id, demo_step=e["step"])["overall_score"],
                     step=e["step"],
                     is_current=(e["step"] == demo_step)
                 )
@@ -58,3 +59,4 @@ def execute(state: Any, context: Any) -> Any:
                 current_step=demo_step
             )
     return state
+

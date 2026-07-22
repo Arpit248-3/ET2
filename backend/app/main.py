@@ -21,8 +21,9 @@ from app.routers import (
     economic, procurement, spr, compliance,
     redteam, brief, decisions, timeline,
     notifications, audit, settings, extra_pages,
-    pipeline, copilot,
+    pipeline, copilot, collaboration, crisis, help, auth
 )
+
 
 
 # Create DB tables on startup
@@ -154,4 +155,13 @@ app.include_router(settings.router, prefix="/api", tags=["Settings"])
 app.include_router(extra_pages.router, prefix="/api", tags=["Extra Pages"])
 app.include_router(pipeline.router, prefix="/api", tags=["Pipeline"])
 app.include_router(copilot.router, prefix="/api", tags=["Copilot"])
+# Collaboration: WebSocket at root level (no prefix needed — ws:// connects to /ws/*)
+# REST API routes under /api
+app.include_router(collaboration.ws_router, tags=["Collaboration WS"])
+app.include_router(collaboration.router, prefix="/api", tags=["Collaboration"])
+app.include_router(crisis.router, prefix="/api", tags=["Crisis"])
+app.include_router(help.router, prefix="/api", tags=["Help Center"])
+app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
+
+
 

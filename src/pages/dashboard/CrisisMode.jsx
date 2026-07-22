@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { AlertTriangle, Zap, Phone, Radio, Shield, Activity, X, CheckCircle, Clock, ChevronRight, Loader } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { AlertTriangle, Zap, Phone, Radio, Shield, Activity, X, CheckCircle, Clock, ChevronRight, Loader, Upload, Power } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout.jsx';
 import GlassCard from '../../components/ui/GlassCard.jsx';
 import { useScenario } from '../../context/ScenarioContext.jsx';
-import { recordDecision } from '../../services/api.js';
+import { recordDecision, fetchCrisisStatus, activateCrisisMode, uploadCrisisManifest } from '../../services/api.js';
 import { useToast } from '../../components/ui/Toast.jsx';
+import { usePipeline } from '../../context/PipelineContext.jsx';
 
 const mockCrisisAlerts = [
   { id: 'CA-001', title: 'Hormuz Strait – Naval Exercise Active', type: 'GEOPOLITICAL', severity: 'CRITICAL', impact: 'Supply disruption imminent', time: '09:12' },
@@ -32,12 +33,34 @@ const statusColor = { PENDING: '#f59e0b', 'IN PROGRESS': '#1d8cff', DONE: '#22c5
 
 export default function CrisisMode() {
   const { systemState, backendOnline, activeScenario } = useScenario();
+  const { refreshPipeline } = usePipeline();
   const [tick, setTick] = useState(0);
   const [timer, setTimer] = useState({ h: 0, m: 47, s: 22 });
   const [actionsList, setActionsList] = useState([]);
   const [submittingAction, setSubmittingAction] = useState(null);
+  const [crisisActive, setCrisisActive] = useState(false);
+  const [crisisActivating, setCrisisActivating] = useState(false);
+  const [showManifestModal, setShowManifestModal] = useState(false);
+  const [manifestFile, setManifestFile] = useState(null);
+  const [manifestNotes, setManifestNotes] = useState('');
+  const [manifestUploading, setManifestUploading] = useState(false);
+  const [manifestResult, setManifestResult] = useState(null);
+  const fileInputRef = useRef(null);
   const navigate = useNavigate();
   const { addToast: showToast } = useToast();
+
+  // Fetch crisis status on mount
+  useEffect(() => {
+    const loadCrisisStatus = async () => {
+      try {
+        const data = await fetchCrisisStatus();
+        setCrisisActive(data?.crisis_active || false);
+      } catch (err) {
+        console.warn('[Crisis] Status fetch failed:', err);
+      }
+    };
+    loadCrisisStatus();
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -150,31 +173,118 @@ export default function CrisisMode() {
     }
   };
 
+  const handleToggleCrisis = async () => {
+    setCrisisActivating(true);
+    try {
+      const result = await activateCrisisMode(!crisisActive);
+      setCrisisActive(result?.crisis_active ?? !crisisActive);
+      showToast(
+        result?.crisis_active
+          ? '⚡ CRISIS MODE ACTIVATED — Dashboard risk engines recalculated.'
+          : 'Crisis mode deactivated. Returning to standard operations.',
+        result?.crisis_active ? 'warning' : 'success'
+      );
+      await refreshPipeline();
+    } catch (err) {
+      showToast('Failed to toggle crisis mode on backend.', 'error');
+    } finally {
+      setCrisisActivating(false);
+    }
+  };
+
+  const handleManifestUpload = async () => {
+    if (!manifestFile) { showToast('Please select a CSV or JSON manifest file.', 'warning'); return; }
+    setManifestUploading(true);
+    try {
+      const result = await uploadCrisisManifest(manifestFile, manifestNotes);
+      setManifestResult(result);
+      showToast(`Manifest processed: ${result.records_processed} entries integrated.`, 'success');
+      await refreshPipeline();
+    } catch (err) {
+      showToast('Failed to process emergency manifest.', 'error');
+    } finally {
+      setManifestUploading(false);
+    }
+  };
+
   const pendingCount = actionsList.filter(a => a.status !== 'DONE').length;
 
   return (
-    <DashboardLayout crisisMode>
+    <DashboardLayout crisisMode={crisisActive}>
       {/* Crisis Banner */}
-      <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 12, padding: '14px 20px', marginBottom: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ background: crisisActive ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.07)', border: `1px solid ${crisisActive ? 'rgba(239,68,68,0.3)' : 'rgba(245,158,11,0.2)'}`, borderRadius: 12, padding: '14px 20px', marginBottom: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'all 0.4s' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ef4444', animation: 'pulse-glow 1s infinite', flexShrink: 0 }} />
+          {crisisActive && <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ef4444', animation: 'pulse-glow 1s infinite', flexShrink: 0 }} />}
           <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#ef4444', letterSpacing: '0.06em' }}>⚠ CRISIS MODE ACTIVE — NATIONAL ENERGY EMERGENCY</div>
-            <div style={{ fontSize: 11, color: 'rgba(239,68,68,0.7)', marginTop: 2 }}>
-              All systems in emergency response protocol · Authorized: Commander Arjun Mehta {backendOnline ? '· (BACKEND ONLINE)' : '· (OFFLINE FALLBACK)'}
+            <div style={{ fontSize: 15, fontWeight: 700, color: crisisActive ? '#ef4444' : '#f59e0b', letterSpacing: '0.06em' }}>
+              {crisisActive ? '⚡ CRISIS MODE ACTIVE — NATIONAL ENERGY EMERGENCY' : '⚠ ELEVATED MONITORING — STANDBY RESPONSE MODE'}
+            </div>
+            <div style={{ fontSize: 11, color: crisisActive ? 'rgba(239,68,68,0.7)' : 'rgba(245,158,11,0.6)', marginTop: 2 }}>
+              {crisisActive ? 'All systems in emergency response protocol · Master risk engine recalculated' : 'Monitoring baseline operations · Crisis mode available'} · {backendOnline ? 'BACKEND ONLINE' : 'OFFLINE FALLBACK'}
             </div>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexShrink: 0 }}>
-          <div style={{ textAlign: 'center', fontFamily: 'monospace' }}>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#ef4444' }}>{pad(timer.h)}:{pad(timer.m)}:{pad(timer.s)}</div>
-            <div style={{ fontSize: 9, color: 'rgba(239,68,68,0.6)', letterSpacing: '0.08em' }}>CRISIS DURATION</div>
-          </div>
-          <button onClick={() => navigate('/command-center')} style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', color: '#ef4444', fontSize: 12, fontWeight: 700, transition: 'all 0.2s' }}>
-            Deactivate Crisis Mode
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
+          {crisisActive && (
+            <div style={{ textAlign: 'center', fontFamily: 'monospace' }}>
+              <div style={{ fontSize: 20, fontWeight: 700, color: '#ef4444' }}>{pad(timer.h)}:{pad(timer.m)}:{pad(timer.s)}</div>
+              <div style={{ fontSize: 9, color: 'rgba(239,68,68,0.6)', letterSpacing: '0.08em' }}>CRISIS DURATION</div>
+            </div>
+          )}
+          <button onClick={() => setShowManifestModal(true)}
+            style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', color: '#a78bfa', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Upload size={13} />Upload Manifest
+          </button>
+          <button onClick={handleToggleCrisis} disabled={crisisActivating}
+            style={{ background: crisisActive ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)', border: `1px solid ${crisisActive ? 'rgba(34,197,94,0.4)' : 'rgba(239,68,68,0.4)'}`, borderRadius: 8, padding: '8px 14px', cursor: 'pointer', color: crisisActive ? '#22c55e' : '#ef4444', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, transition: 'all 0.2s' }}>
+            {crisisActivating ? <Loader size={13} className="animate-spin" /> : <Power size={13} />}
+            {crisisActive ? 'Deactivate' : 'Activate Crisis Mode'}
           </button>
         </div>
       </div>
+
+      {/* Manifest Upload Modal */}
+      {showManifestModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <GlassCard className="card" style={{ width: 480, padding: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Upload size={16} color="#a78bfa" />Upload Emergency Logistics Manifest
+              </div>
+              <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)' }} onClick={() => { setShowManifestModal(false); setManifestResult(null); setManifestFile(null); }}><X size={16} /></button>
+            </div>
+            {manifestResult ? (
+              <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                <CheckCircle size={36} color="#22c55e" style={{ marginBottom: 10 }} />
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#22c55e', marginBottom: 6 }}>Manifest Integrated Successfully</div>
+                <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 4 }}>{manifestResult.records_processed} records processed</div>
+                <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 16 }}>Total volume: {manifestResult.total_volume_mbbl} MBBL</div>
+                <button className="btn btn-secondary" style={{ fontSize: 12 }} onClick={() => { setManifestResult(null); setManifestFile(null); }}>Upload Another</button>
+              </div>
+            ) : (
+              <>
+                <div style={{ border: '2px dashed rgba(139,92,246,0.3)', borderRadius: 10, padding: '24px', textAlign: 'center', marginBottom: 14, cursor: 'pointer', background: 'rgba(139,92,246,0.04)' }}
+                  onClick={() => fileInputRef.current?.click()}>
+                  <Upload size={24} color="#a78bfa" style={{ marginBottom: 8 }} />
+                  <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600 }}>{manifestFile ? manifestFile.name : 'Click to select CSV or JSON manifest'}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>Supports .csv, .json emergency logistics files</div>
+                  <input ref={fileInputRef} type="file" accept=".csv,.json" style={{ display: 'none' }} onChange={e => setManifestFile(e.target.files[0])} />
+                </div>
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', display: 'block', marginBottom: 5 }}>Operational Notes (optional)</label>
+                  <textarea value={manifestNotes} onChange={e => setManifestNotes(e.target.value)} rows={2} placeholder="Emergency supply chain override rationale..."
+                    style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-soft)', borderRadius: 8, padding: '9px 12px', fontSize: 12, color: 'var(--text-primary)', outline: 'none', resize: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                </div>
+                <button className="btn btn-primary" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                  onClick={handleManifestUpload} disabled={!manifestFile || manifestUploading}>
+                  {manifestUploading ? <Loader size={14} className="animate-spin" /> : <Upload size={14} />}
+                  {manifestUploading ? 'Processing Manifest...' : 'Integrate Emergency Manifest'}
+                </button>
+              </>
+            )}
+          </GlassCard>
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14, marginBottom: 14 }}>
         {/* KPIs */}

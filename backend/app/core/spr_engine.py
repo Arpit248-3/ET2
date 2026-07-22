@@ -72,16 +72,38 @@ def plan_spr(
     days_to_zero = int(reserve_after_action / max(daily_gap_mbbl, 0.1)) if daily_gap_mbbl > 0 else 999
     crit_date = (datetime.now(timezone.utc) + timedelta(days=days_to_zero)).strftime("%Y-%m-%d") if days_to_zero < 365 else "No Depletion Risk"
 
-    # Depletion Trajectory (30, 60, 90 days)
+    # Generate 45-day depletion projection and action comparison
     depletion_proj = []
-    current_rem = reserve_after_action
-    for day in range(0, 91, 15):
-        rem_day = round(max(current_rem - (daily_gap_mbbl * day), 0.0), 1)
-        pct_day = round((rem_day / TOTAL_RESERVE_CAPACITY_MBBL) * 100.0, 1)
+    action_comp = []
+    
+    initial_total_stock = sum(s["current_stock_mbbl"] for s in sites_raw)
+
+    for day in range(0, 46, 7):
+        # Unmitigated depletion without SPR release (gap reduces initial stock over time)
+        unmitigated_rem = max(initial_total_stock - (daily_gap_mbbl * day * 0.3), 0.0)
+        unmitigated_pct = round((unmitigated_rem / TOTAL_RESERVE_CAPACITY_MBBL) * 100.0, 1)
+
+        # Mitigated level with SPR release & cargo arrival after arrival_days
+        if day < arrival_days:
+            # SPR release bridges the gap during transit
+            mitigated_rem = max(initial_total_stock - (daily_gap_mbbl * day * 0.08), 0.0)
+        else:
+            # Cargo arrives, stabilizing reserve level
+            mitigated_rem = max(reserve_after_action + ((day - arrival_days) * 0.15), 0.0)
+        
+        mitigated_pct = round(min((mitigated_rem / TOTAL_RESERVE_CAPACITY_MBBL) * 100.0, 100.0), 1)
+
         depletion_proj.append({
-            "day": f"Day {day}",
-            "stock_mbbl": rem_day,
-            "capacity_pct": pct_day,
+            "day": f"D+{day}",
+            "level": unmitigated_pct,
+            "capacity_pct": unmitigated_pct,
+            "stock_mbbl": round(unmitigated_rem, 1),
+        })
+
+        action_comp.append({
+            "day": f"D+{day}",
+            "without": unmitigated_pct,
+            "with": mitigated_pct,
         })
 
     feasible = total_drawn >= (total_drawdown_required * 0.9)
@@ -99,6 +121,7 @@ def plan_spr(
         "critical_date": crit_date,
         "warning": warning,
         "depletion_projection": depletion_proj,
+        "action_comparison": action_comp,
     }
 
 

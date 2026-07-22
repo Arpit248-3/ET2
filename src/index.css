@@ -844,9 +844,11 @@ body.light-theme .sidebar-nav-item:hover svg {
 /* Responsive Grid Layouts */
 .responsive-map-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 320px);
+  grid-template-columns: minmax(0, 1fr) 300px;
   gap: 16px;
   margin-bottom: 16px;
+  align-items: stretch;
+  min-height: 460px;
 }
 
 .responsive-chart-grid {
@@ -886,6 +888,9 @@ body.light-theme .sidebar-nav-item:hover svg {
   .page-content { padding: 20px 22px; }
   .page-header { flex-wrap: wrap; gap: 12px; }
   .page-header-title { font-size: 20px; }
+  /* KPI cards: 3 per row on laptop */
+  .kpi-row-6 { grid-template-columns: repeat(3, 1fr) !important; }
+  .responsive-map-grid { grid-template-columns: minmax(0, 1fr) 280px; }
 }
 
 /* ── 1200px ────────────────────────────────────────────── */
