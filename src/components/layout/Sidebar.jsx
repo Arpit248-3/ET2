@@ -72,17 +72,17 @@ export default function Sidebar({ crisisMode = false }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { currentUser } = useAuth();
+  const { pipelineState } = useScenario();
   const isAdmin = currentUser?.is_admin || currentUser?.email === 'arpitjham1@gmail.com' || currentUser?.role === 'System Administrator';
 
-  const dynamicNavSections = [
-    ...(isAdmin ? [{
+  const dynamicNavSections = isAdmin ? [
+    {
       label: 'Admin Control',
       items: [
         { path: '/admin', label: '👑 Admin Portal', icon: Shield },
       ]
-    }] : []),
-    ...navSections
-  ];
+    }
+  ] : navSections;
   const { data: notifData } = useApi(fetchNotifications, { fallback: null });
   const liveUnread = notifData?.unread_count ?? (notifData?.notifications ? notifData.notifications.filter(n => !n.read).length : null);
   const unreadNotifCount = liveUnread ?? (pipelineState?.notifications_unread_count ?? (
