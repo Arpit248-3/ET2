@@ -1,58 +1,65 @@
 import logging
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from app.config import settings
 
 logger = logging.getLogger("urjanetra.mail")
 
-try:
-    from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
-    HAS_FASTMAIL = True
-except ImportError:
-    HAS_FASTMAIL = False
-    logger.warning("fastapi_mail package not found. Mail delivery will run in simulated log mode.")
-
-fastmail_instance = None
-if HAS_FASTMAIL:
-    try:
-        conf = ConnectionConfig(
-            MAIL_USERNAME=settings.MAIL_USERNAME,
-            MAIL_PASSWORD=settings.MAIL_PASSWORD,
-            MAIL_FROM=settings.MAIL_FROM,
-            MAIL_PORT=settings.MAIL_PORT,
-            MAIL_SERVER=settings.MAIL_SERVER,
-            MAIL_FROM_NAME=settings.MAIL_FROM_NAME,
-            MAIL_STARTTLS=settings.MAIL_STARTTLS,
-            MAIL_SSL_TLS=settings.MAIL_SSL_TLS,
-            USE_CREDENTIALS=True,
-            VALIDATE_CERTS=False
-        )
-        fastmail_instance = FastMail(conf)
-    except Exception as err:
-        logger.warning(f"FastMail ConnectionConfig note: {err}")
-        fastmail_instance = None
-
-
 async def send_email_safe(subject: str, recipients: list[str], body: str):
     """
-    Sends email via FastMail with robust try/except error handling.
-    If SMTP server connection fails or package is missing,
-    falls back cleanly to log output without raising exceptions.
+    Sends real email via SMTP (using standard smtplib for maximum reliability).
+    Supports Gmail (smtp.gmail.com:587) with App Password.
     """
-    logger.info(f"[MAIL OUTBOX] Sending to {recipients} | Subject: {subject}\nBody: {body}")
-    
-    if not HAS_FASTMAIL or not fastmail_instance:
-        logger.info(f"[MAIL SIMULATION LOG] Outgoing mail to {recipients} preserved in DB audit trail.")
+    logger.info(f"[MAIL OUTBOX] Preparing email to {recipients} | Subject: {subject}")
+
+    username = settings.MAIL_USERNAME
+    password = settings.MAIL_PASSWORD
+    sender = settings.MAIL_FROM or username
+
+    # Check if real credentials are set (not default placeholders)
+    is_configured = (
+        username and 
+        password and 
+        "admin@urjanetra" not in username and 
+        password != "secret"
+    )
+
+    if not is_configured:
+        logger.info(
+            f"[MAIL SIMULATION] Real SMTP not configured in .env. "
+            f"OTP for {recipients} logged below:\n--- BODY ---\n{body}\n------------"
+        )
         return False
 
     try:
-        message = MessageSchema(
-            subject=subject,
-            recipients=recipients,
-            body=body,
-            subtype=MessageType.plain
-        )
-        await fastmail_instance.send_message(message)
-        logger.info(f"[MAIL DISPATCH SUCCESS] Sent email to {recipients}")
+        # Build MIME message
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = f"{settings.MAIL_FROM_NAME} <{sender}>"
+        msg["To"] = ", ".join(recipients)
+
+        msg.attach(MIMEText(body, "plain", "utf-8"))
+
+        # Connect via SMTP TLS
+        server_host = settings.MAIL_SERVER or "smtp.gmail.com"
+        server_port = int(settings.MAIL_PORT or 587)
+
+        if settings.MAIL_SSL_TLS:
+            with smtplib.SMTP_SSL(server_host, server_port, timeout=10) as server:
+                server.login(username, password)
+                server.sendmail(sender, recipients, msg.as_string())
+        else:
+            with smtplib.SMTP(server_host, server_port, timeout=10) as server:
+                server.ehlo()
+                if settings.MAIL_STARTTLS:
+                    server.starttls()
+                    server.ehlo()
+                server.login(username, password)
+                server.sendmail(sender, recipients, msg.as_string())
+
+        logger.info(f"[MAIL DISPATCH SUCCESS] Real OTP email sent to {recipients}")
         return True
     except Exception as exc:
-        logger.warning(f"[MAIL DISPATCH FALLBACK] SMTP delivery skipped ({exc}). Ticket update preserved in DB.")
+        logger.warning(f"[MAIL DISPATCH ERROR] Failed to send email via SMTP ({exc}). Check credentials in .env.")
         return False
