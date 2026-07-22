@@ -49,8 +49,8 @@ class EconomicEngine:
     def __init__(self, parameters: Optional[Dict[str, Any]] = None):
         self.params = parameters or get_reference("economic_parameters")
 
-    def calculate(self, scenario: Optional[Dict[str, Any]], demo_step: int = 0) -> Dict[str, Any]:
-        inputs = self._build_inputs(scenario, demo_step)
+    def calculate(self, scenario: Optional[Dict[str, Any]], demo_step: int = 0, severity_multiplier: float = 1.0) -> Dict[str, Any]:
+        inputs = self._build_inputs(scenario, demo_step, severity_multiplier)
         confidence = self.calculate_confidence(inputs)
 
         crude = self.calculate_crude_shock(inputs)
@@ -547,7 +547,8 @@ class EconomicEngine:
         confidence -= min(0.03, inputs["supplier_disruption_pct"] / 2000.0)
         return round(_clamp(confidence, 0.62, 0.94), 2)
 
-    def _build_inputs(self, scenario: Optional[Dict[str, Any]], demo_step: int) -> Dict[str, Any]:
+    def _build_inputs(self, scenario: Optional[Dict[str, Any]], demo_step: int, severity_multiplier: float = 1.0) -> Dict[str, Any]:
+        mult = float(max(0.1, severity_multiplier))
         if not scenario:
             return {
                 "scenario_id": None,
@@ -570,11 +571,12 @@ class EconomicEngine:
                 "policy_absorption": self._default_policy_absorption(32.0),
                 "missing_fields": [],
                 "derived_fields": [],
+                "severity_multiplier": mult,
             }
 
         kpi = scenario.get("kpi", {})
         timeline = scenario.get("timeline", [])
-        risk_score = self._current_risk_score(scenario, demo_step)
+        risk_score = self._current_risk_score(scenario, demo_step) * mult
         impact_progress = self._impact_progress(timeline, demo_step, risk_score)
 
         derived_fields: List[str] = []
@@ -586,8 +588,11 @@ class EconomicEngine:
         elif "crude_price_spike_usd" in scenario:
             raw_crude_pct = _safe_float(scenario.get("crude_price_spike_usd")) / baseline * 100.0
             derived_fields.append("crude_price_change_pct from crude_price_spike_usd")
+        elif "brent_shock_usd" in scenario:
+            raw_crude_pct = (_safe_float(scenario.get("brent_shock_usd")) - baseline) / baseline * 100.0
+            derived_fields.append("crude_price_change_pct from brent_shock_usd")
         else:
-            raw_crude_pct = 0.0
+            raw_crude_pct = 10.0
             missing_fields.append("crude_price_change_pct")
 
         if "shipping_delay_days" in scenario:
@@ -599,7 +604,7 @@ class EconomicEngine:
             raw_delay_days = _safe_float(scenario.get("maritime_delay_pct"))
             derived_fields.append("shipping_delay_days from maritime_delay_pct proxy")
         else:
-            raw_delay_days = 0.0
+            raw_delay_days = 4.0
             missing_fields.append("shipping_delay_days")
 
         if "insurance_spike_pct" in scenario:
@@ -608,54 +613,47 @@ class EconomicEngine:
             raw_insurance_pct = _safe_float(scenario.get("insurance_premium_spike_pct"))
             derived_fields.append("insurance_spike_pct from insurance_premium_spike_pct")
         else:
-            raw_insurance_pct = 0.0
+            raw_insurance_pct = 15.0
             missing_fields.append("insurance_spike_pct")
 
-        raw_supply_gap = _safe_float(
-            scenario.get("supply_gap_mbpd"),
-            _safe_float(scenario.get("india_import_gap_mbbl_day"), _safe_float(kpi.get("supply_gap"), 0.0)),
-        )
-
         if "supplier_disruption_pct" in scenario:
-            raw_supplier_disruption = _safe_float(scenario.get("supplier_disruption_pct"))
+            raw_supplier_pct = _safe_float(scenario.get("supplier_disruption_pct"))
         else:
-            baseline_daily_import = self.params["baseline_monthly_crude_import_mbbl"] / 30.0
-            raw_supplier_disruption = (
-                raw_supply_gap / baseline_daily_import * 100.0 if baseline_daily_import else 0.0
-            )
-            derived_fields.append("supplier_disruption_pct from supply_gap_mbpd")
+            raw_supplier_pct = 20.0
+            missing_fields.append("supplier_disruption_pct")
 
+        raw_supply_gap = _safe_float(scenario.get("india_import_gap_mbbl_day") or kpi.get("supply_gap"), 1.8)
+
+        # Scale all shock parameters by severity_multiplier
+        crude_price_change_pct = raw_crude_pct * mult
+        shipping_delay_days = raw_delay_days * mult
+        insurance_spike_pct = raw_insurance_pct * mult
+        supplier_disruption_pct = raw_supplier_pct * mult
+        supply_gap_mbpd = raw_supply_gap * mult
         spr_coverage_days = _safe_float(scenario.get("spr_coverage_days"), _safe_float(kpi.get("spr_coverage"), 64.0))
-        pass_through_level = scenario.get("pass_through_level") or self._default_pass_through_level(
-            risk_score, spr_coverage_days
-        )
-        policy_absorption = _safe_float(
-            scenario.get("policy_absorption"), self._default_policy_absorption(risk_score)
-        )
-        if policy_absorption > 1:
-            policy_absorption = policy_absorption / 100.0
 
         return {
             "scenario_id": scenario.get("id"),
-            "scenario_name": scenario.get("name", "Active scenario"),
+            "scenario_name": scenario.get("name", "Custom Scenario"),
             "demo_step": demo_step,
             "impact_progress": impact_progress,
-            "crude_price_change_pct": raw_crude_pct * impact_progress,
+            "crude_price_change_pct": crude_price_change_pct,
             "raw_crude_price_change_pct": raw_crude_pct,
-            "shipping_delay_days": raw_delay_days * impact_progress,
+            "shipping_delay_days": shipping_delay_days,
             "raw_shipping_delay_days": raw_delay_days,
-            "insurance_spike_pct": raw_insurance_pct * impact_progress,
+            "insurance_spike_pct": insurance_spike_pct,
             "raw_insurance_spike_pct": raw_insurance_pct,
-            "supplier_disruption_pct": raw_supplier_disruption * impact_progress,
-            "raw_supplier_disruption_pct": raw_supplier_disruption,
-            "risk_score": risk_score,
-            "supply_gap_mbpd": raw_supply_gap * impact_progress,
+            "supplier_disruption_pct": supplier_disruption_pct,
+            "raw_supplier_disruption_pct": raw_supplier_pct,
+            "risk_score": _clamp(risk_score, 10.0, 100.0),
+            "supply_gap_mbpd": supply_gap_mbpd,
             "raw_supply_gap_mbpd": raw_supply_gap,
             "spr_coverage_days": spr_coverage_days,
-            "pass_through_level": pass_through_level,
-            "policy_absorption": policy_absorption,
+            "pass_through_level": scenario.get("pass_through_level", "medium"),
+            "policy_absorption": self._default_policy_absorption(risk_score),
             "missing_fields": missing_fields,
             "derived_fields": derived_fields,
+            "severity_multiplier": mult,
         }
 
     def _inputs_at_progress(self, inputs: Dict[str, Any], progress: float) -> Dict[str, Any]:
@@ -779,9 +777,9 @@ class EconomicEngine:
         return drivers.get(sector, "fuel-linked input cost exposure")
 
 
-def get_economic_impact(scenario_id: Optional[str], demo_step: int = 0) -> Dict[str, Any]:
+def get_economic_impact(scenario_id: Optional[str], demo_step: int = 0, severity_multiplier: float = 1.0) -> Dict[str, Any]:
     scenario = get_scenario(scenario_id) if scenario_id else None
-    return EconomicEngine().calculate(scenario, demo_step)
+    return EconomicEngine().calculate(scenario, demo_step, severity_multiplier)
 
 
 calculate_economic_impact = get_economic_impact

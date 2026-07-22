@@ -49,10 +49,10 @@ export default function ScenarioSimulator() {
         severity_multiplier: mult,
       });
       
-      // 2. Fetch economic impact for this scenario with recalculate flag
+      // 2. Fetch economic impact for this scenario with severity multiplier & recalculate flag
       let econData = null;
       try {
-        econData = await fetchEconomicImpact({ scenario_id: targetId, recalculate: true });
+        econData = await fetchEconomicImpact({ scenario_id: targetId, severity_multiplier: mult, recalculate: true });
       } catch (econErr) {
         console.warn("Economic impact fetch warning:", econErr);
       }
@@ -130,7 +130,7 @@ export default function ScenarioSimulator() {
                       simulationCache.econ?.metrics?.gdp?.value ??
                       selectedObj?.economic?.gdp_impact_pct;
           if (raw === undefined || raw === null) return '-0.30%';
-          const val = Math.abs(parseFloat(raw)) * (simulationCache.severity_multiplier || 1.0);
+          const val = Math.abs(parseFloat(raw));
           return `-${val.toFixed(2)}%`;
         })(),
         inflationImpact: (() => {
@@ -138,7 +138,7 @@ export default function ScenarioSimulator() {
                       simulationCache.econ?.metrics?.inflation?.value ??
                       selectedObj?.economic?.inflation_pct;
           if (raw === undefined || raw === null) return '+1.20%';
-          const val = Math.abs(parseFloat(raw)) * (simulationCache.severity_multiplier || 1.0);
+          const val = Math.abs(parseFloat(raw));
           return `+${val.toFixed(2)}%`;
         })(),
         duration: `${simulationCache.duration_days || durationDays} days`,

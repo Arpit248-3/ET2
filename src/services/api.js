@@ -101,6 +101,7 @@ export const fetchRisk = async () => {
 export const fetchEconomicImpact = async (options = {}) => {
   const params = new URLSearchParams();
   if (options.scenario_id) params.append('scenario_id', options.scenario_id);
+  if (options.severity_multiplier) params.append('severity_multiplier', String(options.severity_multiplier));
   if (options.recalculate) params.append('recalculate', 'true');
   const query = params.toString() ? `?${params.toString()}` : '';
   const data = await apiFetch(`/economic-impact${query}`);
