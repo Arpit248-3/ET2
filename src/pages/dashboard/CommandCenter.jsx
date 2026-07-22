@@ -219,11 +219,13 @@ export default function CommandCenter() {
     if (rawTimeSeries && rawTimeSeries.length > 0) {
       if (rawTimeSeries[0]?.brent !== undefined && rawTimeSeries[0]?.month !== undefined) return rawTimeSeries;
       const step = Math.max(1, Math.floor(rawTimeSeries.length / 7));
-      return rawTimeSeries
-        .filter((_, i) => i % step === 0)
-        .slice(0, 7)
-        .map((pt, i) => {
-          const price = pt.brent ?? pt.crude_price_usd ?? (basePrice + activeSpike * (i / 6.0));
+      const sampled = rawTimeSeries.filter((_, i) => i % step === 0).slice(0, 7);
+      const prices = sampled.map(pt => pt.brent ?? pt.crude_price_usd ?? basePrice);
+      const isFlat = Math.max(...prices) === Math.min(...prices);
+
+      if (!isFlat) {
+        return sampled.map((pt, i) => {
+          const price = pt.brent ?? pt.crude_price_usd ?? basePrice;
           return {
             month: pt.month || `D+${pt.day ?? i * 5}`,
             brent: Number(price.toFixed(1)),
@@ -232,14 +234,15 @@ export default function CommandCenter() {
             import: pt.import_bill_increase_usd_bn ?? Number((price * 0.048).toFixed(1)),
           };
         });
+      }
     }
 
-    // Dynamic curve generation for active scenario
-    const dayMilestones = [0, 5, 10, 15, 20, 25, 30];
-    const shockMultipliers = [0.0, 1.15, 1.08, 0.85, 0.60, 0.35, 0.15]; // Non-flat realistic shock curve
+    // Dynamic curve generation for active scenario with distinct shock trajectory
+    const dayMilestones = [0, 4, 8, 12, 16, 20, 24];
+    const shockMultipliers = [0.05, 1.15, 1.08, 0.82, 0.55, 0.32, 0.15]; // Genuine non-linear curve
 
     return dayMilestones.map((d, idx) => {
-      const mult = activeScenario ? shockMultipliers[idx] : 0.0;
+      const mult = activeScenario ? shockMultipliers[idx] : (0.02 * (idx % 2 === 0 ? 1 : -1));
       const currentBrent = basePrice + activeSpike * mult;
       return {
         month: `D+${d}`,

@@ -511,11 +511,30 @@ class EconomicEngine:
 
     def build_30_day_projection(self, inputs: Dict[str, Any]) -> List[Dict[str, Any]]:
         projection = []
-        current_progress = inputs["impact_progress"]
+        base_price = float(self.params.get("baseline_crude_price_usd", 88.0))
+        raw_change_pct = float(inputs.get("raw_crude_price_change_pct", 15.0))
+        mult = float(inputs.get("severity_multiplier", 1.0))
+        spike_usd = base_price * (raw_change_pct / 100.0) * mult
+
         for day in range(0, 31):
-            realization = current_progress + (1 - current_progress) * min(1.0, day / 21.0)
-            projected_inputs = self._inputs_at_progress(inputs, realization)
+            if spike_usd > 0:
+                if day <= 5:
+                    shock_factor = (day / 5.0) * 1.15
+                elif day <= 12:
+                    shock_factor = 1.15 - (day - 5) * 0.01
+                elif day <= 22:
+                    shock_factor = 1.08 - (day - 12) * 0.05
+                else:
+                    shock_factor = max(0.15, 0.58 - (day - 22) * 0.05)
+            else:
+                shock_factor = 0.0
+
+            cur_crude_usd = round(base_price + spike_usd * shock_factor, 2)
+            projected_inputs = dict(inputs)
+            projected_inputs["crude_price_change_pct"] = ((cur_crude_usd - base_price) / base_price) * 100.0 if base_price > 0 else 0.0
+
             crude = self.calculate_crude_shock(projected_inputs)
+            crude["shocked_price_usd"] = cur_crude_usd
             import_bill = self.calculate_import_bill_impact(projected_inputs, crude)
             fx = self.calculate_fx_pressure(projected_inputs, import_bill)
             fuel = self.calculate_fuel_pass_through(projected_inputs, import_bill)
@@ -525,7 +544,7 @@ class EconomicEngine:
             projection.append(
                 {
                     "day": day,
-                    "crude_price_usd": crude["shocked_price_usd"],
+                    "crude_price_usd": cur_crude_usd,
                     "inflation_impact_pp": round(cpi["inflation_impact_pp"], 2),
                     "gdp_growth_drag_pp": round(gdp["gdp_growth_drag_pp"], 2),
                     "fuel_price_impact_pct": round(fuel["fuel_price_impact_pct"], 2),
