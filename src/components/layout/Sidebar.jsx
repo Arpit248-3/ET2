@@ -6,7 +6,7 @@ import {
   Factory, Database, Shield, Target, FileText, Bell, BookOpen,
   ClipboardList, Users, Settings, MessageSquare, HelpCircle, Clock,
   Users2, Layers, Brain, User, ChevronDown, ChevronRight, Activity,
-  Globe, Command, LogOut, Home, ChevronsLeft, ChevronsRight, Zap, PlayCircle, ShieldCheck
+  Globe, Command, LogOut, Home, ChevronsLeft, ChevronsRight, Zap, PlayCircle,
 } from 'lucide-react';
 import Logo from '../ui/Logo.jsx';
 import { useScenario } from '../../context/ScenarioContext.jsx';
@@ -46,7 +46,6 @@ const navSections = [
   {
     label: 'Management',
     items: [
-      { path: '/admin', label: 'Admin Portal', icon: ShieldCheck },
       { path: '/notifications', label: 'Notifications', icon: Bell, badge: 3 },
       { path: '/reports', label: 'Reports Library', icon: BookOpen },
       { path: '/audit-logs', label: 'Audit Logs', icon: ClipboardList },
@@ -68,11 +67,23 @@ const navSections = [
   },
 ];
 
+import { useAuth } from '../../context/AuthContext.jsx';
+
 export default function Sidebar({ crisisMode = false }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { currentUser } = useAuth();
+  const isAdmin = currentUser?.is_admin || currentUser?.email === 'arpitjham1@gmail.com' || currentUser?.role === 'System Administrator';
 
-  const { pipelineState } = useScenario();
+  const dynamicNavSections = [
+    ...(isAdmin ? [{
+      label: 'Admin Control',
+      items: [
+        { path: '/admin', label: '👑 Admin Portal', icon: Shield },
+      ]
+    }] : []),
+    ...navSections
+  ];
   const { data: notifData } = useApi(fetchNotifications, { fallback: null });
   const liveUnread = notifData?.unread_count ?? (notifData?.notifications ? notifData.notifications.filter(n => !n.read).length : null);
   const unreadNotifCount = liveUnread ?? (pipelineState?.notifications_unread_count ?? (
@@ -108,8 +119,7 @@ export default function Sidebar({ crisisMode = false }) {
   const toggleSection = (label) => {
     if (!minimized) setCollapsed(prev => ({ ...prev, [label]: !prev[label] }));
   };
-
-  const allItems = navSections.flatMap(s => s.items);
+  const allItems = dynamicNavSections.flatMap(s => s.items);
 
   return (
     <div
@@ -139,34 +149,16 @@ export default function Sidebar({ crisisMode = false }) {
             <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
               <div className="status-dot live" />
               <span style={{ fontSize: 9, color: '#4ade80', fontWeight: 700, letterSpacing: '0.09em', whiteSpace: 'nowrap' }}>
-                SYSTEM ONLINE
+                SYSTEM ONLINE — NEMC
               </span>
             </div>
           </div>
         )}
-        {minimized && (
-          <div style={{
-            width: 34, height: 34, borderRadius: 10,
-            background: 'linear-gradient(135deg, #0066cc, #00e5ff)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 0 12px rgba(0,229,255,0.35)',
-            flexShrink: 0,
-          }}>
-            <Zap size={16} style={{ color: 'white' }} />
-          </div>
-        )}
-        {/* Collapse toggle */}
         <button
-          onClick={() => setMinimized(v => !v)}
-          title={minimized ? 'Expand sidebar' : 'Collapse sidebar'}
-          style={{
-            width: 28, height: 28, borderRadius: 7, border: '1px solid var(--border-soft)',
-            background: 'rgba(255,255,255,0.04)', color: 'var(--text-dim)',
-            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            flexShrink: 0, transition: 'all 0.15s',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(29,140,255,0.12)'; e.currentTarget.style.color = '#60b4ff'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = 'var(--text-dim)'; }}
+          className="btn btn-ghost btn-icon"
+          onClick={() => setMinimized(m => !m)}
+          title={minimized ? "Expand sidebar" : "Collapse sidebar"}
+          style={{ width: 26, height: 26, padding: 0, color: 'var(--text-dim)', flexShrink: 0 }}
         >
           {minimized ? <ChevronsRight size={14} /> : <ChevronsLeft size={14} />}
         </button>
@@ -240,7 +232,7 @@ export default function Sidebar({ crisisMode = false }) {
         ) : (
           /* FULL SIDEBAR MODE */
           <>
-            {navSections.map(section => (
+            {dynamicNavSections.map(section => (
               <div key={section.label}>
                 <button
                   onClick={() => toggleSection(section.label)}

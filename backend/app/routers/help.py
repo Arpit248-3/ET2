@@ -1,11 +1,12 @@
 """
 Help Center & Admin Support Ticket Router
 Endpoints:
-- POST /api/help/tickets — Submit support inquiry (notifies Admin arpitjham1@gmail.com)
+- POST /api/help/tickets — Submit support inquiry (notifies Admin arpitjham1@gmail.com via email)
 - GET /api/help/admin/tickets — Retrieve all support tickets for admin inbox
-- POST /api/help/admin/tickets/{ticket_id}/reply — Send reply & mark ticket resolved (notifies user via email)
+- POST /api/help/admin/tickets/{ticket_id}/reply — Send reply & mark ticket resolved (emails user)
 """
 import logging
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
@@ -47,21 +48,21 @@ def create_ticket(
     db.commit()
     db.refresh(ticket)
 
-    # Dispatch email alert to Admin arpitjham1@gmail.com
+    # Email notification sent to Admin (arpitjham1@gmail.com)
+    admin_subject = f"[UrjaNetra Admin Alert] New User Query #{ticket.id}: {subject}"
     admin_body = (
-        f"UrjaNetra AI — National Energy Resilience Platform Support\n"
+        f"UrjaNetra AI — Support Portal Alert\n"
+        f"====================================\n"
         f"New Support Inquiry Received [Ticket #{ticket.id}]\n\n"
-        f"From User Email: {user_email}\n"
-        f"Subject: {subject}\n"
-        f"Timestamp: {ticket.created_at.strftime('%Y-%m-%d %H:%M:%S UTC') if ticket.created_at else 'Just now'}\n\n"
-        f"================ MESSAGE CONTENT ================\n"
-        f"{message}\n"
-        f"=================================================\n\n"
-        f"Log into the UrjaNetra Admin Portal to review and reply to this ticket."
+        f"From User: {user_email}\n"
+        f"Subject: {subject}\n\n"
+        f"User Message:\n{message}\n\n"
+        f"====================================\n"
+        f"Log in to the Admin Portal (arpitjham1@gmail.com) to reply directly to this user."
     )
     background_tasks.add_task(
         send_email_safe,
-        f"[UrjaNetra Support Alert] New Query from {user_email}: {subject}",
+        admin_subject,
         [ADMIN_EMAIL],
         admin_body
     )
@@ -78,7 +79,7 @@ def create_ticket(
     return {
         "success": True,
         "ticket_id": ticket.id,
-        "message": f"Support ticket #{ticket.id} submitted successfully and sent to Admin ({ADMIN_EMAIL}).",
+        "message": f"Support ticket #{ticket.id} submitted successfully.",
         "status": "OPEN",
         "timestamp": ticket.created_at.isoformat()
     }
@@ -113,7 +114,7 @@ def reply_ticket(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
-    reply_text = payload.get("reply", payload.get("admin_reply", payload.get("reply_text", ""))).strip()
+    reply_text = payload.get("reply", payload.get("admin_reply", "")).strip()
     if not reply_text:
         raise HTTPException(status_code=400, detail="Reply message cannot be empty")
 
@@ -127,23 +128,23 @@ def reply_ticket(
     db.commit()
     db.refresh(ticket)
 
-    # Queue response email directly to the user's registered inbox
+    # Email notification sent to User's registered email address
+    user_subject = f"[UrjaNetra Support Response] Ticket #{ticket.id}: {ticket.subject}"
     user_body = (
-        f"Dear Operator ({ticket.user_email}),\n\n"
-        f"An administrator ({ADMIN_EMAIL}) has responded to your support ticket #{ticket.id}.\n\n"
-        f"================ ADMIN RESPONSE ================\n"
+        f"Dear UrjaNetra Operator,\n\n"
+        f"An administrator (UrjaNetra AI Support Command) has responded to your inquiry.\n\n"
+        f"Ticket ID: #{ticket.id}\n"
+        f"Original Subject: {ticket.subject}\n\n"
+        f"====================================\n"
+        f"ADMINISTRATOR RESPONSE:\n"
         f"{reply_text}\n"
-        f"===============================================\n\n"
-        f"Original Query Details:\n"
-        f"Subject: {ticket.subject}\n"
-        f"Message:\n{ticket.message}\n\n"
+        f"====================================\n\n"
         f"Status: RESOLVED\n\n"
-        f"Thank you,\n"
-        f"UrjaNetra AI National Command Support"
+        f"Thank you for contacting UrjaNetra AI National Command Support."
     )
     background_tasks.add_task(
         send_email_safe,
-        f"[UrjaNetra Support Response] Reply to Ticket #{ticket.id}: {ticket.subject}",
+        user_subject,
         [ticket.user_email],
         user_body
     )
@@ -151,7 +152,7 @@ def reply_ticket(
     create_audit_entry(
         db=db,
         user=ADMIN_EMAIL,
-        action=f"Replied & Resolved Ticket #{ticket.id} for {ticket.user_email}",
+        action=f"Replied & Resolved Ticket #{ticket.id}",
         module="Help Center Admin",
         event_type="USER",
         details={"ticket_id": ticket.id, "user_email": ticket.user_email}

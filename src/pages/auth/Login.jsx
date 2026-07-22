@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 const BACKEND = 'http://localhost:8000/api/auth';
 
 const ROLES = [
+  { value: 'System Administrator', icon: '👑', desc: 'System Admin & Support Portal Master' },
   { value: 'National Energy Commander', icon: '⚡', desc: 'Supreme NEMC command authority' },
   { value: 'Executive Director (Cabinet Level)', icon: '🏛️', desc: 'Cabinet-level executive decisions' },
   { value: 'SPR Administrator', icon: '🛢️', desc: 'Strategic petroleum reserve ops' },
@@ -15,7 +16,7 @@ const ROLES = [
 
 export default function Login() {
   const navigate = useNavigate();
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, currentUser } = useAuth();
 
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({ email: '', password: '', role: 'National Energy Commander' });
@@ -30,8 +31,11 @@ export default function Login() {
   const mfaRefs = useRef([]);
 
   useEffect(() => {
-    if (isAuthenticated) navigate('/command-center', { replace: true });
-  }, [isAuthenticated, navigate]);
+    if (isAuthenticated) {
+      const target = (currentUser?.is_admin || currentUser?.email === 'arpitjham1@gmail.com' || currentUser?.role === 'System Administrator') ? '/admin' : '/command-center';
+      navigate(target, { replace: true });
+    }
+  }, [isAuthenticated, currentUser, navigate]);
 
   const handleChange = (e) => { setForm(f => ({ ...f, [e.target.name]: e.target.value })); setError(''); };
 
@@ -112,7 +116,8 @@ export default function Login() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || 'MFA verification failed');
       setSuccess(true);
-      setTimeout(() => { login(data.token, data.user); navigate('/command-center', { replace: true }); }, 1500);
+      const targetPage = (data.user?.is_admin || data.user?.email === 'arpitjham1@gmail.com' || data.user?.role === 'System Administrator') ? '/admin' : '/command-center';
+      setTimeout(() => { login(data.token, data.user); navigate(targetPage, { replace: true }); }, 1500);
     } catch (err) { setError(err.message || 'Invalid code.'); }
     finally { setLoading(false); }
   };

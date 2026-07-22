@@ -1,89 +1,88 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Mail, Send, CheckCircle, Clock, MessageSquare, RefreshCw, UserCheck, Search, Filter, AlertCircle, Sparkles } from 'lucide-react';
+import { ShieldCheck, Mail, MessageSquare, CheckCircle, Clock, Send, RefreshCw, AlertCircle, Filter, User, Sparkles } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout.jsx';
 import GlassCard from '../../components/ui/GlassCard.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
-import { fetchAdminTickets, replyAdminTicket, fetchUsers } from '../../services/api.js';
 import { useToast } from '../../components/ui/Toast.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { useNavigate } from 'react-router-dom';
+
+const API_BASE = 'http://localhost:8000/api/help';
 
 export default function AdminPortal() {
-  const { currentUser } = useAuth();
   const { addToast } = useToast();
+  const { currentUser } = useAuth();
+  const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState('queries'); // 'queries' | 'users'
   const [tickets, setTickets] = useState([]);
-  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filterStatus, setFilterStatus] = useState('ALL');
-  const [searchQuery, setSearchQuery] = useState('');
-
-  // Selected ticket for reply modal/panel
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [replyText, setReplyText] = useState('');
-  const [replying, setReplying] = useState(false);
+  const [sendingReply, setSendingReply] = useState(false);
+  const [filter, setFilter] = useState('ALL');
 
-  const loadAdminData = async () => {
+  // Verify Admin Access
+  const isAdmin = currentUser?.email === 'arpitjham1@gmail.com' || currentUser?.role === 'System Administrator';
+
+  const fetchTickets = async () => {
     setLoading(true);
     try {
-      const ticketRes = await fetchAdminTickets();
-      if (ticketRes && ticketRes.tickets) {
-        setTickets(ticketRes.tickets);
-      }
-
-      const userRes = await fetchUsers();
-      if (userRes && Array.isArray(userRes)) {
-        setUsers(userRes);
+      const res = await fetch(`${API_BASE}/admin/tickets`);
+      const data = await res.json();
+      if (data.success && data.tickets) {
+        setTickets(data.tickets);
+        if (!selectedTicket && data.tickets.length > 0) {
+          setSelectedTicket(data.tickets[0]);
+        }
       }
     } catch (err) {
-      console.warn('Failed to load admin data:', err);
-      addToast('Error loading admin portal data', 'error');
+      console.error('Failed to fetch admin tickets:', err);
+      addToast('Failed to load user tickets from server', 'error');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadAdminData();
+    fetchTickets();
   }, []);
-
-  const handleSelectTicket = (t) => {
-    setSelectedTicket(t);
-    setReplyText(t.admin_reply || '');
-  };
 
   const handleSendReply = async () => {
     if (!selectedTicket) return;
-    if (!replyText.strip && !replyText.trim()) {
-      addToast('Please enter a response message.', 'warning');
+    if (!replyText.trim()) {
+      addToast('Reply message cannot be empty', 'warning');
       return;
     }
 
-    setReplying(true);
+    setSendingReply(true);
     try {
-      const res = await replyAdminTicket(selectedTicket.id, { reply: replyText.trim() });
-      addToast(`✓ Response sent to ${selectedTicket.user_email}! Ticket #${selectedTicket.id} marked RESOLVED.`, 'success');
-      
-      // Update local ticket state
-      setTickets(prev => prev.map(t => t.id === selectedTicket.id ? { ...t, admin_reply: replyText.trim(), status: 'RESOLVED' } : t));
-      setSelectedTicket(prev => prev ? { ...prev, admin_reply: replyText.trim(), status: 'RESOLVED' } : null);
+      const res = await fetch(`${API_BASE}/admin/tickets/${selectedTicket.id}/reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reply: replyText.trim() }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.detail || 'Failed to send reply');
+
+      addToast(`✓ Reply sent to ${selectedTicket.user_email}! Email dispatched via Gmail SMTP.`, 'success');
       setReplyText('');
+      
+      // Update local state
+      setTickets(prev => prev.map(t => t.id === selectedTicket.id ? { ...t, status: 'RESOLVED', admin_reply: replyText.trim() } : t));
+      setSelectedTicket(prev => prev ? { ...prev, status: 'RESOLVED', admin_reply: replyText.trim() } : null);
     } catch (err) {
-      console.error('Failed to send admin reply:', err);
-      addToast(err.message || 'Failed to dispatch email reply.', 'error');
+      console.error('Reply error:', err);
+      addToast(err.message || 'Failed to dispatch reply', 'error');
     } finally {
-      setReplying(false);
+      setSendingReply(false);
     }
   };
 
-  // Filtered tickets
   const filteredTickets = tickets.filter(t => {
-    const matchesFilter = filterStatus === 'ALL' || t.status === filterStatus;
-    const matchesSearch = !searchQuery || 
-      t.user_email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.message.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesFilter && matchesSearch;
+    if (filter === 'OPEN') return t.status === 'OPEN';
+    if (filter === 'RESOLVED') return t.status === 'RESOLVED';
+    return true;
   });
 
   const openCount = tickets.filter(t => t.status === 'OPEN').length;
@@ -92,312 +91,277 @@ export default function AdminPortal() {
   return (
     <DashboardLayout>
       <PageHeader
-        title="Admin Portal — Support & Operations Command"
-        subtitle="Manage user queries, respond to help tickets via automated Gmail SMTP, and oversee platform operators"
-        badge={{ label: 'SYSTEM ADMIN', color: '#8b5cf6' }}
+        title="Admin Support Command Portal"
+        subtitle="Manage user queries, dispatch official resolution responses, and monitor system help desk"
+        badge={{ label: "ADMINISTRATOR ONLY", color: "#a855f7" }}
         actions={
-          <button
-            className="btn btn-secondary btn-sm"
-            onClick={loadAdminData}
-            disabled={loading}
-            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
-          >
-            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
-            Refresh Inbox
+          <button className="btn btn-secondary btn-sm" onClick={fetchTickets} disabled={loading}>
+            <RefreshCw size={13} style={{ animation: loading ? 'spin 1s linear infinite' : 'none', marginRight: 6 }} />
+            Refresh Tickets
           </button>
         }
       />
 
-      {/* Quick Metrics */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 20 }}>
-        <GlassCard style={{ padding: '16px', borderLeft: '4px solid #8b5cf6' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      {/* Admin Summary KPI Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 20 }}>
+        <GlassCard style={{ background: 'rgba(168,85,247,0.06)', borderColor: 'rgba(168,85,247,0.25)', padding: '16px 20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
-              <div style={{ fontSize: 11, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Support Tickets</div>
-              <div style={{ fontSize: 24, fontWeight: 800, color: '#fff', marginTop: 4 }}>{tickets.length}</div>
-            </div>
-            <MessageSquare size={24} color="#8b5cf6" style={{ opacity: 0.8 }} />
-          </div>
-        </GlassCard>
-
-        <GlassCard style={{ padding: '16px', borderLeft: '4px solid #ef4444' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontSize: 11, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Open Inquiries</div>
-              <div style={{ fontSize: 24, fontWeight: 800, color: '#ef4444', marginTop: 4 }}>{openCount}</div>
-            </div>
-            <Clock size={24} color="#ef4444" style={{ opacity: 0.8 }} />
-          </div>
-        </GlassCard>
-
-        <GlassCard style={{ padding: '16px', borderLeft: '4px solid #22c55e' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontSize: 11, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Resolved Queries</div>
-              <div style={{ fontSize: 24, fontWeight: 800, color: '#22c55e', marginTop: 4 }}>{resolvedCount}</div>
-            </div>
-            <CheckCircle size={24} color="#22c55e" style={{ opacity: 0.8 }} />
-          </div>
-        </GlassCard>
-
-        <GlassCard style={{ padding: '16px', borderLeft: '4px solid #00e5ff' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontSize: 11, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Gmail Dispatch Server</div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#00e5ff', marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }}></span>
-                arpitjham1@gmail.com
+              <div style={{ fontSize: 11, color: '#c084fc', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                Total Received Queries
+              </div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: '#fff', marginTop: 4 }}>
+                {tickets.length}
               </div>
             </div>
-            <Mail size={24} color="#00e5ff" style={{ opacity: 0.8 }} />
+            <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'rgba(168,85,247,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#c084fc' }}>
+              <MessageSquare size={20} />
+            </div>
+          </div>
+        </GlassCard>
+
+        <GlassCard style={{ background: 'rgba(239,68,68,0.06)', borderColor: 'rgba(239,68,68,0.25)', padding: '16px 20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ fontSize: 11, color: '#f87171', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                Pending Response (Open)
+              </div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: '#ef4444', marginTop: 4 }}>
+                {openCount}
+              </div>
+            </div>
+            <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'rgba(239,68,68,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444' }}>
+              <Clock size={20} />
+            </div>
+          </div>
+        </GlassCard>
+
+        <GlassCard style={{ background: 'rgba(34,197,94,0.06)', borderColor: 'rgba(34,197,94,0.25)', padding: '16px 20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ fontSize: 11, color: '#4ade80', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                Resolved & Responded
+              </div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: '#22c55e', marginTop: 4 }}>
+                {resolvedCount}
+              </div>
+            </div>
+            <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'rgba(34,197,94,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#22c55e' }}>
+              <CheckCircle size={20} />
+            </div>
           </div>
         </GlassCard>
       </div>
 
-      {/* Tab Controls */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-        <button
-          onClick={() => setActiveTab('queries')}
-          style={{
-            padding: '8px 18px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer',
-            background: activeTab === 'queries' ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.03)',
-            border: `1px solid ${activeTab === 'queries' ? '#8b5cf6' : 'rgba(255,255,255,0.1)'}`,
-            color: activeTab === 'queries' ? '#a78bfa' : 'var(--text-dim)',
-            display: 'flex', alignItems: 'center', gap: 8, transition: 'all 0.2s'
-          }}
-        >
-          <MessageSquare size={15} /> User Help Tickets ({tickets.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('users')}
-          style={{
-            padding: '8px 18px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer',
-            background: activeTab === 'users' ? 'rgba(0,229,255,0.2)' : 'rgba(255,255,255,0.03)',
-            border: `1px solid ${activeTab === 'users' ? '#00e5ff' : 'rgba(255,255,255,0.1)'}`,
-            color: activeTab === 'users' ? '#00e5ff' : 'var(--text-dim)',
-            display: 'flex', alignItems: 'center', gap: 8, transition: 'all 0.2s'
-          }}
-        >
-          <UserCheck size={15} /> Registered Operators ({users.length})
-        </button>
-      </div>
+      {/* Main Admin Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: 16 }}>
+        
+        {/* Left Column: Tickets List */}
+        <GlassCard style={{ display: 'flex', flexDirection: 'column', height: '640px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, paddingBottom: 10, borderBottom: '1px solid var(--border-soft)' }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Filter size={14} color="#00e5ff" /> User Help Tickets
+            </div>
 
-      {activeTab === 'queries' ? (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 420px', gap: 16 }}>
-          
-          {/* Left Column: Tickets Table */}
-          <GlassCard style={{ padding: '16px' }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
-              
-              {/* Search */}
-              <div style={{ position: 'relative', minWidth: 220 }}>
-                <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }} />
-                <input
-                  type="text"
-                  placeholder="Search email, subject..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+            {/* Filter Tabs */}
+            <div style={{ display: 'flex', gap: 4, background: 'rgba(0,0,0,0.3)', padding: 3, borderRadius: 8 }}>
+              {['ALL', 'OPEN', 'RESOLVED'].map(st => (
+                <button
+                  key={st}
+                  onClick={() => setFilter(st)}
                   style={{
-                    width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-soft)',
-                    borderRadius: 6, padding: '7px 10px 7px 32px', fontSize: 12, color: '#fff', outline: 'none'
+                    padding: '4px 10px',
+                    borderRadius: 6,
+                    fontSize: 10,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    border: 'none',
+                    background: filter === st ? 'rgba(0,229,255,0.2)' : 'transparent',
+                    color: filter === st ? '#00e5ff' : 'var(--text-dim)',
                   }}
-                />
-              </div>
+                >
+                  {st}
+                </button>
+              ))}
+            </div>
+          </div>
 
-              {/* Status Filter */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Filter size={13} color="var(--text-dim)" />
-                {['ALL', 'OPEN', 'RESOLVED'].map(st => (
-                  <button
-                    key={st}
-                    onClick={() => setFilterStatus(st)}
+          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10, paddingRight: 4 }}>
+            {loading ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)', fontSize: 12 }}>
+                <RefreshCw size={18} style={{ animation: 'spin 1s linear infinite', marginRight: 8 }} /> Loading user tickets...
+              </div>
+            ) : filteredTickets.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)', fontSize: 12 }}>
+                No tickets match the selected filter.
+              </div>
+            ) : (
+              filteredTickets.map(t => {
+                const isSelected = selectedTicket?.id === t.id;
+                const isOpen = t.status === 'OPEN';
+
+                return (
+                  <div
+                    key={t.id}
+                    onClick={() => {
+                      setSelectedTicket(t);
+                      setReplyText(t.admin_reply || '');
+                    }}
                     style={{
-                      padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                      background: filterStatus === st ? 'rgba(0,229,255,0.15)' : 'rgba(255,255,255,0.03)',
-                      border: `1px solid ${filterStatus === st ? '#00e5ff' : 'rgba(255,255,255,0.08)'}`,
-                      color: filterStatus === st ? '#00e5ff' : 'var(--text-dim)',
+                      padding: '12px 14px',
+                      borderRadius: 10,
+                      cursor: 'pointer',
+                      background: isSelected ? 'rgba(0,229,255,0.08)' : 'rgba(255,255,255,0.02)',
+                      border: `1px solid ${isSelected ? 'rgba(0,229,255,0.4)' : 'rgba(255,255,255,0.06)'}`,
+                      transition: 'all 0.2s ease',
                     }}
                   >
-                    {st}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* List of Tickets */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 520, overflowY: 'auto' }}>
-              {filteredTickets.length > 0 ? (
-                filteredTickets.map(t => {
-                  const isSelected = selectedTicket?.id === t.id;
-                  const isOpen = t.status === 'OPEN';
-
-                  return (
-                    <div
-                      key={t.id}
-                      onClick={() => handleSelectTicket(t)}
-                      style={{
-                        padding: '12px 14px', borderRadius: 8, cursor: 'pointer',
-                        background: isSelected ? 'rgba(139,92,246,0.12)' : 'rgba(255,255,255,0.02)',
-                        border: `1px solid ${isSelected ? '#8b5cf6' : 'rgba(255,255,255,0.06)'}`,
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0' }}>
-                          #{t.id} — {t.subject}
-                        </div>
-                        <span style={{
-                          fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 4,
-                          background: isOpen ? 'rgba(239,68,68,0.15)' : 'rgba(34,197,94,0.15)',
-                          color: isOpen ? '#ef4444' : '#22c55e',
-                          border: `1px solid ${isOpen ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)'}`,
-                        }}>
-                          {t.status}
-                        </span>
-                      </div>
-
-                      <div style={{ fontSize: 11, color: '#00e5ff', fontWeight: 600, marginBottom: 6 }}>
-                        📩 {t.user_email}
-                      </div>
-
-                      <div style={{
-                        fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5,
-                        display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden'
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: '#00e5ff' }}>
+                        #TICK-{t.id}
+                      </span>
+                      <span style={{
+                        fontSize: 9.5, fontWeight: 700, padding: '2px 8px', borderRadius: 12,
+                        background: isOpen ? 'rgba(239,68,68,0.15)' : 'rgba(34,197,94,0.15)',
+                        color: isOpen ? '#ef4444' : '#22c55e',
+                        border: `1px solid ${isOpen ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)'}`
                       }}>
-                        {t.message}
-                      </div>
-
-                      {t.created_at && (
-                        <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 6, textAlign: 'right' }}>
-                          Submitted: {new Date(t.created_at).toLocaleString()}
-                        </div>
-                      )}
+                        {t.status}
+                      </span>
                     </div>
-                  );
-                })
-              ) : (
-                <div style={{ textAlign: 'center', padding: '40px 10px', color: 'var(--text-dim)', fontSize: 13 }}>
-                  No support tickets found matching criteria.
-                </div>
-              )}
-            </div>
-          </GlassCard>
 
-          {/* Right Column: Ticket Inspection & Reply Form */}
-          <div>
-            {selectedTicket ? (
-              <GlassCard style={{ background: 'rgba(8,18,38,0.95)', border: '1px solid rgba(139,92,246,0.3)', padding: '18px' }}>
-                
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#8b5cf6', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>
-                  Responding to Ticket #{selectedTicket.id}
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {t.subject}
+                    </div>
+
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <User size={11} color="var(--text-dim)" /> {t.user_email}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </GlassCard>
+
+        {/* Right Column: Selected Ticket Details & Official Reply Box */}
+        <GlassCard style={{ display: 'flex', flexDirection: 'column', height: '640px', background: 'rgba(8,18,38,0.95)', borderColor: 'rgba(0,229,255,0.25)' }}>
+          {selectedTicket ? (
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+              {/* Header */}
+              <div style={{ paddingBottom: 12, borderBottom: '1px solid var(--border-soft)', marginBottom: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#00e5ff', letterSpacing: '0.08em' }}>
+                    TICKET INQUIRY #{selectedTicket.id}
+                  </div>
+                  <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
+                    Submitted: {new Date(selectedTicket.created_at).toLocaleString()}
+                  </span>
                 </div>
 
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 12 }}>
+                <div style={{ fontSize: 16, fontWeight: 800, color: '#fff', marginBottom: 6 }}>
                   {selectedTicket.subject}
                 </div>
 
-                <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: 12, marginBottom: 14 }}>
-                  <div style={{ fontSize: 11, color: '#00e5ff', fontWeight: 600, marginBottom: 4 }}>
-                    From: {selectedTicket.user_email}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#c084fc', background: 'rgba(168,85,247,0.1)', padding: '6px 12px', borderRadius: 6, border: '1px solid rgba(168,85,247,0.2)' }}>
+                  <Mail size={13} />
+                  <span>Sender Email: <strong>{selectedTicket.user_email}</strong></span>
+                </div>
+              </div>
+
+              {/* User Message Box */}
+              <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14, paddingRight: 4 }}>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-dim)', letterSpacing: '0.08em', marginBottom: 6, textTransform: 'uppercase' }}>
+                    User Inquiry Query Message:
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                  <div style={{
+                    background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: 8, padding: '14px 16px', fontSize: 13, color: '#e2e8f0', lineHeight: 1.6,
+                    whiteSpace: 'pre-wrap'
+                  }}>
                     {selectedTicket.message}
                   </div>
                 </div>
 
+                {/* Existing Admin Reply if resolved */}
                 {selectedTicket.admin_reply && (
-                  <div style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 8, padding: 12, marginBottom: 14 }}>
-                    <div style={{ fontSize: 11, color: '#22c55e', fontWeight: 700, marginBottom: 4 }}>
-                      ✓ Previous Admin Response:
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: '#22c55e', letterSpacing: '0.08em', marginBottom: 6, textTransform: 'uppercase' }}>
+                      Previous Admin Response (Sent to User Email):
                     </div>
-                    <div style={{ fontSize: 12, color: '#e2e8f0', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                    <div style={{
+                      background: 'rgba(34,197,94,0.05)', border: '1px solid rgba(34,197,94,0.2)',
+                      borderRadius: 8, padding: '12px 14px', fontSize: 12, color: '#4ade80', lineHeight: 1.5
+                    }}>
                       {selectedTicket.admin_reply}
                     </div>
                   </div>
                 )}
+              </div>
 
-                {/* Reply Input Box */}
-                <div style={{ marginTop: 14 }}>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>
-                    Admin Response Message (will be emailed to {selectedTicket.user_email}):
-                  </label>
-                  <textarea
-                    rows={5}
-                    placeholder="Type your response to the user query..."
-                    value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
-                    style={{
-                      width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(139,92,246,0.3)',
-                      borderRadius: 8, padding: 10, fontSize: 12, color: '#fff', outline: 'none',
-                      boxSizing: 'border-box', fontFamily: 'inherit', resize: 'vertical'
-                    }}
-                  />
+              {/* Official Response Composer */}
+              <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border-soft)' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#00e5ff', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Sparkles size={13} /> Compose Official Admin Response (Dispatches Email via Gmail SMTP):
+                </div>
 
+                <textarea
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  placeholder={`Write official resolution response to ${selectedTicket.user_email}...`}
+                  rows={4}
+                  style={{
+                    width: '100%',
+                    background: 'rgba(0,229,255,0.03)',
+                    border: '1px solid rgba(0,229,255,0.25)',
+                    borderRadius: 8,
+                    color: '#fff',
+                    padding: '12px 14px',
+                    fontSize: 12.5,
+                    fontFamily: 'inherit',
+                    outline: 'none',
+                    resize: 'none',
+                    lineHeight: 1.5,
+                    marginBottom: 10,
+                  }}
+                />
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
                   <button
                     onClick={handleSendReply}
-                    disabled={replying}
+                    disabled={sendingReply}
                     className="btn btn-primary"
                     style={{
-                      width: '100%', marginTop: 12, background: 'linear-gradient(90deg, #8b5cf6, #6366f1)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+                      background: 'linear-gradient(135deg, #00e5ff, #3b82f6)',
+                      border: 'none',
+                      padding: '8px 20px',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
                     }}
                   >
-                    {replying ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />}
-                    {replying ? 'Dispatching Email...' : 'Send Response & Resolve Ticket'}
+                    {sendingReply ? (
+                      <RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                    ) : (
+                      <Send size={14} />
+                    )}
+                    {sendingReply ? 'Dispatching Email...' : 'Send Official Response & Email User 🚀'}
                   </button>
                 </div>
-              </GlassCard>
-            ) : (
-              <GlassCard style={{ textAlign: 'center', padding: '50px 20px', color: 'var(--text-dim)' }}>
-                <Mail size={32} color="#8b5cf6" style={{ marginBottom: 10, opacity: 0.5 }} />
-                <div style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>Select a Support Ticket</div>
-                <div style={{ fontSize: 12, maxWidth: 280, margin: '0 auto' }}>
-                  Click any ticket on the left to inspect the user's inquiry and dispatch an email reply.
-                </div>
-              </GlassCard>
-            )}
-          </div>
-
-        </div>
-      ) : (
-        /* Users Tab */
-        <GlassCard style={{ padding: '16px' }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 12 }}>
-            Registered Platform Operators ({users.length})
-          </div>
-
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, textAlign: 'left' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-dim)' }}>
-                  <th style={{ padding: '10px' }}>Operator</th>
-                  <th style={{ padding: '10px' }}>Email</th>
-                  <th style={{ padding: '10px' }}>Role</th>
-                  <th style={{ padding: '10px' }}>Phone Number</th>
-                  <th style={{ padding: '10px' }}>Clearance</th>
-                  <th style={{ padding: '10px' }}>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map(u => (
-                  <tr key={u.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                    <td style={{ padding: '10px', fontWeight: 700, color: '#fff' }}>{u.name}</td>
-                    <td style={{ padding: '10px', color: '#00e5ff' }}>{u.email}</td>
-                    <td style={{ padding: '10px', color: 'var(--text-secondary)' }}>{u.role}</td>
-                    <td style={{ padding: '10px', color: '#f59e0b' }}>{u.phone || 'N/A'}</td>
-                    <td style={{ padding: '10px', color: 'var(--text-dim)' }}>{u.clearance_level || 'LEVEL-2'}</td>
-                    <td style={{ padding: '10px' }}>
-                      <span style={{ fontSize: 10, fontWeight: 800, color: '#22c55e', background: 'rgba(34,197,94,0.15)', padding: '2px 8px', borderRadius: 4 }}>
-                        {u.status || 'ACTIVE'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)' }}>
+              <MessageSquare size={36} style={{ marginBottom: 12, opacity: 0.4 }} />
+              <p style={{ fontSize: 13 }}>Select a ticket from the left column to review and respond.</p>
+            </div>
+          )}
         </GlassCard>
-      )}
+
+      </div>
     </DashboardLayout>
   );
 }

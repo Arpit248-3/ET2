@@ -178,6 +178,7 @@ export function adaptEconomicImpact(data) {
 
   return {
     headline,
+    time_series: derivedTimeSeries,
     cost_of_living: data.cost_of_living ? {
       urban_monthly_household_impact_inr: Number(data.cost_of_living.urban_monthly_household_impact_inr ?? 0),
       rural_monthly_household_impact_inr: Number(data.cost_of_living.rural_monthly_household_impact_inr ?? 0),

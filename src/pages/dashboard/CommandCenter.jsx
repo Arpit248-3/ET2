@@ -209,25 +209,45 @@ export default function CommandCenter() {
 
   const displayIncidents = liveIncidents || defaultIncidents;
 
-  // Normalize backend time_series (uses day/crude_price_usd keys) into chart-compatible shape
-  const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const rawTimeSeries = econData?.time_series;
+  // Normalize backend time_series or active scenario parameters into dynamic chart shape
   const displayTimeSeries = (() => {
-    if (!rawTimeSeries || rawTimeSeries.length === 0) return defaultTimeSeries;
-    // If backend data has 'month' key already, use as-is
-    if (rawTimeSeries[0]?.month !== undefined) return rawTimeSeries;
-    // Backend returns 30-day projection — sample ~7 points and normalize keys
-    const step = Math.max(1, Math.floor(rawTimeSeries.length / 7));
-    return rawTimeSeries
-      .filter((_, i) => i % step === 0)
-      .slice(0, 7)
-      .map((pt, i) => ({
-        month: MONTH_LABELS[i] || `D${pt.day ?? i}`,
-        brent: pt.crude_price_usd ?? defaultTimeSeries[i]?.brent ?? 80,
-        indianBasket: pt.crude_price_usd ? +(pt.crude_price_usd * 0.95).toFixed(1) : defaultTimeSeries[i]?.indianBasket ?? 77,
-        wti: pt.crude_price_usd ? +(pt.crude_price_usd * 0.92).toFixed(1) : defaultTimeSeries[i]?.wti ?? 74,
-        import: pt.import_bill_increase_usd_bn ?? defaultTimeSeries[i]?.import ?? 4.2,
-      }));
+    const rawTimeSeries = econData?.time_series || econData?.projection;
+    if (rawTimeSeries && rawTimeSeries.length > 0) {
+      if (rawTimeSeries[0]?.brent !== undefined && rawTimeSeries[0]?.month !== undefined) return rawTimeSeries;
+      const step = Math.max(1, Math.floor(rawTimeSeries.length / 7));
+      return rawTimeSeries
+        .filter((_, i) => i % step === 0)
+        .slice(0, 7)
+        .map((pt, i) => {
+          const price = pt.brent ?? pt.crude_price_usd ?? (88.0 + i * 2.5);
+          return {
+            month: pt.month || `Day ${pt.day ?? i * 5}`,
+            brent: Number(price.toFixed(1)),
+            indianBasket: Number((price * 0.95).toFixed(1)),
+            wti: Number((price * 0.92).toFixed(1)),
+            import: pt.import_bill_increase_usd_bn ?? 4.2,
+          };
+        });
+    }
+
+    if (activeScenario) {
+      const base = activeScenario.brent_baseline_usd || 88.0;
+      const spike = activeScenario.crude_price_spike_usd || (activeScenario.brent_shock_usd ? activeScenario.brent_shock_usd - base : 15.0);
+      const points = [0, 5, 10, 15, 20, 25, 30];
+      return points.map(d => {
+        const shockFactor = d <= 5 ? d / 5.0 : d <= 15 ? 1.0 : Math.max(0.2, 1.0 - (d - 15) / 15.0 * 0.5);
+        const currBrent = base + spike * shockFactor;
+        return {
+          month: `Day ${d}`,
+          brent: Number(currBrent.toFixed(1)),
+          indianBasket: Number((currBrent * 0.95).toFixed(1)),
+          wti: Number((currBrent * 0.92).toFixed(1)),
+          import: Number((currBrent * 0.05).toFixed(1)),
+        };
+      });
+    }
+
+    return defaultTimeSeries;
   })();
 
   const crisisColor = displayRisk >= 80 ? '#ef4444' : displayRisk >= 60 ? '#f59e0b' : '#22c55e';

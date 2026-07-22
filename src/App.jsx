@@ -38,19 +38,33 @@ import Profile from './pages/dashboard/Profile.jsx';
 import CrisisMode from './pages/dashboard/CrisisMode.jsx';
 import DemoMode from './pages/dashboard/DemoMode.jsx';
 import ThresholdsAlerts from './pages/dashboard/ThresholdsAlerts.jsx';
+
 import AdminPortal from './pages/dashboard/AdminPortal.jsx';
 
 // Protected Route wrapper
-function ProtectedRoute({ children }) {
-  const { isAuthenticated } = useAuth();
+function ProtectedRoute({ children, adminOnly = false }) {
+  const { isAuthenticated, currentUser } = useAuth();
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
+  const isAdmin = currentUser?.is_admin || currentUser?.email === 'arpitjham1@gmail.com' || currentUser?.role === 'System Administrator';
+  
+  if (adminOnly && !isAdmin) {
+    return <Navigate to="/command-center" replace />;
+  }
+  
+  // If user is Admin, they should stay in Admin Portal
+  if (isAdmin && window.location.pathname !== '/admin') {
+    return <Navigate to="/admin" replace />;
+  }
+
   return children;
 }
 
 function AppRoutes() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, currentUser } = useAuth();
+  const isAdmin = currentUser?.is_admin || currentUser?.email === 'arpitjham1@gmail.com' || currentUser?.role === 'System Administrator';
+  const defaultPage = isAdmin ? "/admin" : "/command-center";
 
   React.useEffect(() => {
     const isDark = localStorage.getItem('urja_dark_mode') !== 'false';
@@ -60,12 +74,15 @@ function AppRoutes() {
   return (
     <Routes>
       {/* Auth Routes */}
-      <Route path="/login" element={isAuthenticated ? <Navigate to="/command-center" replace /> : <Login />} />
-      <Route path="/register" element={isAuthenticated ? <Navigate to="/command-center" replace /> : <Register />} />
+      <Route path="/login" element={isAuthenticated ? <Navigate to={defaultPage} replace /> : <Login />} />
+      <Route path="/register" element={isAuthenticated ? <Navigate to={defaultPage} replace /> : <Register />} />
 
-      {/* Default Entry — always /login on fresh load; auth is memory-only so refresh = login */}
+      {/* Default Entry — always /login on fresh load */}
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/home" element={<Navigate to="/login" replace />} />
+
+      {/* Admin Dedicated Route */}
+      <Route path="/admin" element={<ProtectedRoute adminOnly><AdminPortal /></ProtectedRoute>} />
 
       {/* Protected Dashboard Routes */}
       <Route path="/command-center" element={<ProtectedRoute><CommandCenter /></ProtectedRoute>} />
@@ -95,7 +112,6 @@ function AppRoutes() {
       <Route path="/crisis-mode" element={<ProtectedRoute><CrisisMode /></ProtectedRoute>} />
       <Route path="/demo-mode" element={<ProtectedRoute><DemoMode /></ProtectedRoute>} />
       <Route path="/settings/thresholds-alerts" element={<ProtectedRoute><ThresholdsAlerts /></ProtectedRoute>} />
-      <Route path="/admin" element={<ProtectedRoute><AdminPortal /></ProtectedRoute>} />
 
       {/* Catch-all */}
       <Route path="*" element={<Navigate to={isAuthenticated ? "/command-center" : "/login"} replace />} />

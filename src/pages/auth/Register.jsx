@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 const BACKEND = 'http://localhost:8000/api/auth';
 
 const ROLES = [
+  { value: 'System Administrator',              icon: '👑', color: '#a855f7', clearance: 'LEVEL-5 COSMIC TOP SECRET', dept: 'UrjaNetra System Admin' },
   { value: 'National Energy Commander',         icon: '⚡', color: '#ef4444', clearance: 'LEVEL-5 COSMIC TOP SECRET', dept: 'NEMC Command' },
   { value: 'Executive Director (Cabinet Level)', icon: '🏛️', color: '#f59e0b', clearance: 'LEVEL-5 EYES ONLY',         dept: 'Cabinet Secretariat' },
   { value: 'SPR Administrator',                  icon: '🛢️', color: '#8b5cf6', clearance: 'LEVEL-4 SECRET',            dept: 'Strategic Petroleum Reserve' },

@@ -21,7 +21,7 @@ from app.routers import (
     economic, procurement, spr, compliance,
     redteam, brief, decisions, timeline,
     notifications, audit, settings, extra_pages,
-    pipeline, copilot, collaboration, crisis, help, auth, events, admin
+    pipeline, copilot, collaboration, crisis, help, auth, events
 )
 
 
@@ -176,7 +176,6 @@ app.include_router(crisis.router, prefix="/api", tags=["Crisis"])
 app.include_router(help.router, prefix="/api", tags=["Help Center"])
 app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
 app.include_router(events.router, prefix="/api", tags=["Events"])
-app.include_router(admin.router, prefix="/api", tags=["Admin Portal"])
 
 
 
