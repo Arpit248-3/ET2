@@ -114,6 +114,51 @@ function createShipIcon(isLight) {
   `;
 }
 
+// Smooth Catmull-Rom Spline curve generator for nautical map routes
+function generateSmoothCurve(waypoints, samplesPerSegment = 24) {
+  if (!waypoints || waypoints.length < 2) return waypoints;
+
+  const pts = [
+    waypoints[0], // Duplicate start for boundary
+    ...waypoints,
+    waypoints[waypoints.length - 1] // Duplicate end for boundary
+  ];
+
+  const curved = [];
+
+  for (let i = 1; i < pts.length - 2; i++) {
+    const p0 = pts[i - 1];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[i + 2];
+
+    for (let t = 0; t < 1; t += 1 / samplesPerSegment) {
+      const t2 = t * t;
+      const t3 = t2 * t;
+
+      // Catmull-Rom Spline Formula
+      const lat = 0.5 * (
+        (2 * p1[0]) +
+        (-p0[0] + p2[0]) * t +
+        (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * t2 +
+        (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * t3
+      );
+
+      const lng = 0.5 * (
+        (2 * p1[1]) +
+        (-p0[1] + p2[1]) * t +
+        (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * t2 +
+        (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * t3
+      );
+
+      curved.push([lat, lng]);
+    }
+  }
+
+  curved.push(waypoints[waypoints.length - 1]);
+  return curved;
+}
+
 function interpolatePath(points, t) {
   if (!points || points.length === 0) return null;
   if (points.length === 1) return points[0];
@@ -494,60 +539,74 @@ export default function MapPanel({
         markersRef.current.push({ marker, type, risk: riskStr, name: label, lat, lng });
       });
 
-      // 2. Draw pipelines and sea routes (6 Distinct Geographically Accurate Routes)
+      // 2. Draw pipelines and sea routes (6 Smooth Catmull-Rom Spline Nautical Routes)
       const ALL_MARITIME_ROUTES = {
-        west_africa: [ // West Africa (Lagos) -> Cape of Good Hope -> Open Arabian Sea -> Vadinar (WEST of Sri Lanka & India, ZERO land cutting)
+        west_africa: generateSmoothCurve([
           [4.3, 6.2],         // Lagos / West Africa Port
-          [-12.0, 5.0],       // South Atlantic
-          [-34.8, 20.0],      // Cape of Good Hope
-          [-25.0, 38.0],      // Mozambique Channel
-          [-10.0, 55.0],      // Western Indian Ocean
-          [5.5, 73.0],        // Laccadive Sea / Open Arabian Sea (WEST of Sri Lanka, NO LAND CUTTING)
+          [-5.0, 3.0],        // Gulf of Guinea Arc
+          [-20.0, 5.0],       // South Atlantic Ocean
+          [-34.8, 18.5],      // Cape of Good Hope
+          [-35.5, 23.0],      // Agulhas Current Coast Curve
+          [-28.0, 36.0],      // Mozambique Channel Entrance
+          [-16.0, 46.0],      // Mozambique Channel Mid
+          [-5.0, 58.0],       // Western Indian Ocean Arc
+          [5.0, 68.0],        // Laccadive Sea / Open Arabian Sea (WEST of Sri Lanka, ZERO LAND CUTTING)
           [12.0, 70.0],       // Open Arabian Sea
-          [20.5, 70.8],       // Gulf of Khambhat Entrance
+          [19.5, 70.2],       // Gulf of Khambhat Entrance
           [22.3072, 73.1812]  // Jamnagar / Vadinar Terminal
-        ],
-        saudi_hormuz: [ // Basra / Ras Tanura -> Persian Gulf -> Strait of Hormuz -> Vadinar
+        ], 24),
+        saudi_hormuz: generateSmoothCurve([
           [27.0, 50.0],       // Ras Tanura / Persian Gulf
-          [26.5, 53.0],
+          [26.8, 52.8],
           [26.4, 56.5],       // Strait of Hormuz
-          [24.5, 58.5],       // Gulf of Oman
-          [20.0, 65.0],       // Arabian Sea
-          [22.3072, 73.1812]  // Jamnagar / Vadinar Terminal
-        ],
-        brazil_atlantic: [ // Santos Brazil -> Cape of Good Hope -> Arabian Sea -> Mangaluru -> Vadinar
+          [24.8, 58.8],       // Gulf of Oman
+          [21.5, 63.5],       // Open Arabian Sea
+          [20.0, 68.0],
+          [22.3072, 73.1812]  // Vadinar Terminal
+        ], 24),
+        brazil_atlantic: generateSmoothCurve([
           [-23.9, -46.3],     // Santos Port, Brazil
-          [-34.8, 20.0],      // Cape of Good Hope
-          [-15.0, 55.0],      // Indian Ocean
-          [2.0, 65.0],        // Equator Crossing
-          [10.0, 71.0],       // Open Arabian Sea (WEST of India)
+          [-28.0, -28.0],     // Mid South Atlantic Arc
+          [-35.0, -5.0],      // South Atlantic Deep
+          [-36.5, 18.0],      // Cape of Good Hope Curve
+          [-30.0, 34.0],      // Indian Ocean Entrance
+          [-18.0, 48.0],      // Madagascar East Pass
+          [-3.0, 62.0],       // Central Indian Ocean Arc
+          [6.0, 68.0],        // Laccadive Sea (WEST of India, NO LAND CUTTING)
           [12.8698, 74.8431], // Mangaluru Port
-          [22.3072, 73.1812]  // Jamnagar / Vadinar Terminal
-        ],
-        uae_hormuz: [ // Fujairah Port (Gulf of Oman bypass) -> Vadinar
-          [25.3, 56.3],       // Fujairah Port
-          [24.0, 59.0],       // Gulf of Oman
-          [20.0, 65.0],       // Open Arabian Sea
-          [22.3072, 73.1812]  // Jamnagar / Vadinar Terminal
-        ],
-        russia_arctic: [ // Murmansk / Baltic -> Atlantic -> Cape of Good Hope -> Vadinar
+          [22.3072, 73.1812]  // Vadinar Terminal
+        ], 24),
+        uae_hormuz: generateSmoothCurve([
+          [25.3, 56.3],       // Fujairah Port (Gulf of Oman)
+          [24.2, 59.0],       // Gulf of Oman
+          [21.0, 64.0],       // Arabian Sea
+          [20.0, 68.0],
+          [22.3072, 73.1812]  // Vadinar Terminal
+        ], 24),
+        russia_arctic: generateSmoothCurve([
           [68.97, 33.07],     // Murmansk / Arctic Port
-          [58.0, 3.0],        // North Sea
-          [35.0, -15.0],      // Atlantic Ocean
-          [-34.8, 20.0],      // Cape of Good Hope
-          [0.0, 65.0],        // Indian Ocean
-          [15.0, 70.0],       // Open Arabian Sea
-          [22.3072, 73.1812]  // Jamnagar / Vadinar Terminal
-        ],
-        usa_wti: [ // Houston / US Gulf -> Atlantic -> Cape -> Kochi & Vadinar
+          [62.0, 8.0],        // Norwegian Sea Arc
+          [54.0, -3.0],       // North Sea / English Channel
+          [38.0, -12.0],      // Atlantic Coast
+          [15.0, -18.0],      // West Africa Atlantic
+          [-15.0, -5.0],      // South Atlantic
+          [-36.5, 18.0],      // Cape of Good Hope Curve
+          [-20.0, 48.0],      // Indian Ocean
+          [0.0, 62.0],        // Equator Arc
+          [14.0, 69.0],       // Open Arabian Sea
+          [22.3072, 73.1812]  // Vadinar Terminal
+        ], 24),
+        usa_wti: generateSmoothCurve([
           [29.7, -95.3],      // Houston Port, US Gulf
-          [24.5, -80.5],      // Straits of Florida
-          [15.0, -45.0],      // Atlantic Ocean
-          [-34.8, 20.0],      // Cape of Good Hope
-          [2.0, 65.0],        // Indian Ocean
+          [24.5, -82.0],      // Straits of Florida
+          [18.0, -55.0],      // Mid Atlantic Arc
+          [-10.0, -25.0],     // South Atlantic
+          [-36.5, 18.0],      // Cape of Good Hope Curve
+          [-15.0, 52.0],      // Indian Ocean Arc
+          [5.0, 68.0],        // Arabian Sea
           [9.9312, 76.2673],  // Kochi Port
-          [22.3072, 73.1812]  // Jamnagar / Vadinar Terminal
-        ]
+          [22.3072, 73.1812]  // Vadinar Terminal
+        ], 24)
       };
 
       const routeCoords = {
