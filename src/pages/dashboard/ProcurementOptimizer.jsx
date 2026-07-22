@@ -9,7 +9,7 @@ import DataTable from '../../components/ui/DataTable.jsx';
 import { useToast } from '../../components/ui/Toast.jsx';
 import { useScenario } from '../../context/ScenarioContext.jsx';
 import useApi from '../../hooks/useApi.js';
-import { optimizeProcurement, recordDecision, generateBrief } from '../../services/api.js';
+import { optimizeProcurement, recordDecision, generateBrief, approveProcurementRoute } from '../../services/api.js';
 
 // Hover tooltip descriptions for selected supplier detail boxes
 const DETAIL_DESCRIPTIONS = {
@@ -237,21 +237,35 @@ export default function ProcurementOptimizer() {
     addToast('RFQ exported and downloaded', 'success');
   };
 
-  const handleApprove = async () => {
+  const handleApproveSpecificRoute = async (sup) => {
     setApproving(true);
+    const targetSup = sup || selectedRow || displaySuppliers[0];
+    const routeId = (targetSup.route || '').toLowerCase().includes('cape') ? 'cape_of_good_hope' : ((targetSup.route || '').toLowerCase().includes('atlantic') ? 'atlantic_corridor' : 'hormuz_corridor');
+    const payload = {
+      route_id: routeId,
+      route_name: `${targetSup.route} (${targetSup.supplier} Corridor)`,
+      supplier: targetSup.supplier,
+      destination_port: 'Jamnagar / Vadinar Terminal',
+      eta_days: parseInt(targetSup.eta) || 22,
+      landed_cost: targetSup.landedCost || '$84.2/bbl',
+      risk_score: targetSup.riskScore || 18,
+      approved_by: 'Commander Arjun Mehta, NEMC'
+    };
+
     try {
       if (backendOnline) {
-        await recordDecision({
-          action_type: 'APPROVE_PROCUREMENT_PLAN',
-          approved_by: 'Commander Arjun Mehta',
-          scenario_id: activeScenario?.id || 'baseline',
-          details: activeData || { message: 'Approved procurement recommendation plan' },
-        });
+        await approveProcurementRoute(payload);
+      } else {
+        localStorage.setItem('urja_approved_route', JSON.stringify(payload));
+        window.dispatchEvent(new CustomEvent('urja-route-approved', { detail: payload }));
       }
       await refreshState();
-      addToast('Procurement plan approved and sent to Cabinet', 'success');
-    } catch { addToast('Failed to record approval', 'error'); }
-    finally { setApproving(false); }
+      addToast(`Alternative Route Approved & Activated: ${payload.route_name}`, 'success');
+    } catch (err) {
+      addToast('Route approval failed: ' + (err.message || 'error'), 'error');
+    } finally {
+      setApproving(false);
+    }
   };
 
   const selectedRow = selectedSupplier || displaySuppliers[0];
@@ -262,6 +276,75 @@ export default function ProcurementOptimizer() {
   const displayCoverage  = activeData?.coverage_days ? `${activeData.coverage_days} days` : '30 days';
   const displayRisk      = activeData?.risk_summary || '—';
   const displayOptFor    = (activeData?.optimized_for || 'Cost-Risk Balance').replace(/_/g, ' ');
+
+  return (
+    <DashboardLayout>
+      <PageHeader
+        title="Procurement Optimizer"
+        subtitle="AI-ranked crude supplier options · Landed cost & geopolitical risk analysis"
+        badge={<StatusBadge status={activeScenario ? "SCENARIO ACTIVE" : "NOMINAL"} />}
+        actions={
+          <>
+            <button className="btn btn-secondary btn-sm" onClick={handleExportRFQ}>
+              <Download size={13} style={{ marginRight: 6 }} /> Export RFQ
+            </button>
+            <button className="btn btn-secondary btn-sm" onClick={handleGenerateNote}>
+              <FileText size={13} style={{ marginRight: 6 }} /> Download Note
+            </button>
+            <button className="btn btn-primary btn-sm" onClick={() => handleOptimize(false)} disabled={optimizing}>
+              {optimizing ? <Loader size={13} className="animate-spin" /> : <ShoppingCart size={13} style={{ marginRight: 6 }} />} Re-Optimize Mix
+            </button>
+          </>
+        }
+      />
+
+      {/* Selected Supplier Detail with hover tooltips & Route Approval Action */}
+      {selectedRow && (
+        <GlassCard style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>Selected Supplier: {selectedRow.supplier}</h3>
+              <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>Corridor: <b style={{ color: '#00e5ff' }}>{selectedRow.route}</b> (ETA: {selectedRow.eta})</span>
+            </div>
+            <button
+              className="btn btn-success btn-sm"
+              onClick={() => handleApproveSpecificRoute(selectedRow)}
+              disabled={approving}
+              style={{ background: '#22c55e', borderColor: '#22c55e', color: '#000', fontWeight: 800 }}
+            >
+              {approving ? <Loader size={13} className="animate-spin" /> : <CheckCircle size={13} style={{ marginRight: 6 }} />}
+              Approve & Activate Route: {selectedRow.route}
+            </button>
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))', gap:12 }}>
+            {[
+              { label:'Route',         val: selectedRow.route },
+              { label:'ETA',           val: selectedRow.eta },
+              { label:'Landed Cost',   val: selectedRow.landedCost },
+              { label:'Risk Score',    val: `${selectedRow.riskScore}/100` },
+              { label:'Compatibility', val: `${selectedRow.compatibility}%` },
+              { label:'Sanctions',     val: selectedRow.sanctions },
+              { label:'Availability',  val: selectedRow.availability },
+              { label:'Verdict',       val: selectedRow.verdict },
+            ].map(d => (
+              <TooltipCard key={d.label} label={d.label} val={d.val} desc={DETAIL_DESCRIPTIONS[d.label] || ''} />
+            ))}
+          </div>
+          {selectedRow.scoreBreakdown && (
+            <div style={{ marginTop:14, padding:'10px 14px', background:'rgba(255,255,255,0.02)', borderRadius:8, border:'1px solid var(--border-soft)' }}>
+              <div style={{ fontSize:11, color:'var(--text-dim)', marginBottom:8, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em' }}>Score Breakdown</div>
+              <div style={{ display:'flex', flexWrap:'wrap', gap:10 }}>
+                {Object.entries(selectedRow.scoreBreakdown).map(([k, v]) => (
+                  <div key={k} style={{ fontSize:11, color:'var(--text-muted)' }}>
+                    <span style={{ color:'var(--text-dim)' }}>{k.replace(/_/g,' ')}: </span>
+                    <span style={{ color:'#60b4ff', fontWeight:600 }}>{v}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </GlassCard>
+      )}
 
   if (!activeData && !backendOnline) return (
     <DashboardLayout>

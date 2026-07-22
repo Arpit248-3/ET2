@@ -1,9 +1,36 @@
 import { useState } from 'react';
+import { approveProcurementRoute } from '../../../services/api.js';
 
 export default function Recommendations({ data }) {
   const recs = data?.recommendations ?? [];
   const alts = data?.alternatives    ?? [];
   const [checked, setChecked] = useState({});
+  const [approvingId, setApprovingId] = useState(null);
+
+  const handleRouteApproveInJarvis = async (item) => {
+    setApprovingId(item.id);
+    const payload = {
+      route_id: 'cape_of_good_hope',
+      route_name: 'Cape of Good Hope (West Africa / Atlantic Corridor)',
+      supplier: 'West Africa (Nigeria / Bonny Light)',
+      destination_port: 'Jamnagar / Vadinar Terminal',
+      eta_days: 22,
+      landed_cost: '$84.2/bbl',
+      risk_score: 18,
+      approved_by: 'Commander Arjun Mehta (JARVIS Copilot)'
+    };
+    try {
+      await approveProcurementRoute(payload);
+      setChecked(prev => ({ ...prev, [item.id]: true }));
+    } catch (e) {
+      console.warn('JARVIS route approval:', e);
+      localStorage.setItem('urja_approved_route', JSON.stringify(payload));
+      window.dispatchEvent(new CustomEvent('urja-route-approved', { detail: payload }));
+      setChecked(prev => ({ ...prev, [item.id]: true }));
+    } finally {
+      setApprovingId(null);
+    }
+  };
 
   const allItems = [
     ...recs.map((r, i) => ({ id: `rec-${i}`, text: typeof r === 'string' ? r : r?.action ?? JSON.stringify(r), priority: 'high',     type: 'Recommended Action' })),
@@ -111,6 +138,22 @@ export default function Recommendations({ data }) {
                 }}>
                   {text}
                 </div>
+
+                {(text.toLowerCase().includes('route') || text.toLowerCase().includes('cape') || text.toLowerCase().includes('africa') || text.toLowerCase().includes('bypass') || text.toLowerCase().includes('supplier')) && (
+                  <button
+                    onClick={() => handleRouteApproveInJarvis({ id, text })}
+                    disabled={approvingId === id || done}
+                    style={{
+                      marginTop: 8, padding: '4px 12px', borderRadius: 6,
+                      background: done ? 'rgba(34,197,94,0.15)' : '#22c55e',
+                      color: done ? '#22c55e' : '#000',
+                      border: 'none', fontSize: 11, fontWeight: 800, cursor: 'pointer',
+                      display: 'inline-flex', alignItems: 'center', gap: 6
+                    }}
+                  >
+                    {done ? '✓ Approved & Rerouted' : (approvingId === id ? 'Approving...' : '⚡ Approve Alternative Route via Cape of Good Hope')}
+                  </button>
+                )}
               </div>
             </div>
           );

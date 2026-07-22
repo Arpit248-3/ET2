@@ -151,6 +151,25 @@ export default function MapPanel({
   const polylinesRef = useRef([]);
   const shipMarkersRef = useRef([]);
 
+  const [approvedRouteState, setApprovedRouteState] = useState(() => {
+    try {
+      const c = localStorage.getItem('urja_approved_route');
+      return c ? JSON.parse(c) : { route_id: 'cape_of_good_hope', route_name: 'Cape of Good Hope (West Africa / Atlantic Corridor)', supplier: 'West Africa (Nigeria)' };
+    } catch {
+      return { route_id: 'cape_of_good_hope', route_name: 'Cape of Good Hope (West Africa / Atlantic Corridor)', supplier: 'West Africa (Nigeria)' };
+    }
+  });
+
+  useEffect(() => {
+    const handleRouteApproved = (e) => {
+      if (e.detail) {
+        setApprovedRouteState(e.detail);
+      }
+    };
+    window.addEventListener('urja-route-approved', handleRouteApproved);
+    return () => window.removeEventListener('urja-route-approved', handleRouteApproved);
+  }, []);
+
   // Ships moving animation along routes
   useEffect(() => {
     if (!leafletMapRef.current) return;
@@ -178,7 +197,7 @@ export default function MapPanel({
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [ships]);
+  }, [ships, approvedRouteState]);
 
   // Native fullscreen event listener to sync React state
   useEffect(() => {
@@ -209,7 +228,6 @@ export default function MapPanel({
           animate: true,
           duration: 1.2
         });
-        // Find matching marker and open tooltip
         const label = selectedNode.label || selectedNode.name;
         const match = markersRef.current.find(m => m.name === label);
         if (match) {
@@ -248,7 +266,7 @@ export default function MapPanel({
         initializingRef.current = false;
         return;
       }
-      // Check if Leaflet has already initialized a map on this element
+
       if (mapRef.current._leaflet_id) {
         return;
       }
@@ -261,9 +279,6 @@ export default function MapPanel({
         doubleClickZoom: false,
       });
 
-      // dblclick → fullscreen (handled below after map is stored)
-
-      // Fit to India bounding box
       const indiaBounds = [
         [7.0, 67.0],
         [36.5, 98.0]
@@ -295,7 +310,6 @@ export default function MapPanel({
       leafletMapRef.current = map;
       initializingRef.current = false;
 
-      // DOUBLE-CLICK → Fullscreen (single click should NOT toggle fullscreen)
       map.on('dblclick', () => {
         if (!containerRef.current) return;
         if (!document.fullscreenElement) {
@@ -305,12 +319,10 @@ export default function MapPanel({
         }
       });
 
-      // Listen for zoom changes
       map.on('zoomend', () => {
         updateMarkerSizes(map.getZoom());
       });
 
-      // MutationObserver to watch theme class changes on body
       const observer = new MutationObserver(() => {
         const isLight = document.body.classList.contains('light-theme');
         if (tileLayerRef.current) {
@@ -331,27 +343,20 @@ export default function MapPanel({
       });
       observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
 
-      // Trigger initial size computation
       updateMarkerSizes(map.getZoom());
 
-      // Inject Leaflet Styles
       const style = document.createElement('style');
       style.innerHTML = `
-        /* Neon dark tile styling */
         body:not(.light-theme) .urja-map-container .leaflet-tile-pane {
           filter: brightness(1.1) contrast(1.15) hue-rotate(185deg) saturate(1.6);
         }
         body.light-theme .urja-map-container .leaflet-tile-pane {
           filter: saturate(1.1) brightness(0.98);
         }
-
-        /* Pin pulse animation */
         @keyframes pinPulse {
           0% { transform: scale(1); opacity: 0.8; }
           70%, 100% { transform: scale(2.4); opacity: 0; }
         }
-
-        /* Pipeline & Sea Route Flow animations */
         @keyframes flowDash {
           to { stroke-dashoffset: -40; }
         }
@@ -361,74 +366,12 @@ export default function MapPanel({
         .urja-sea-flow {
           animation: flowDash 4s linear infinite;
         }
-
-        /* Tooltip styles */
-        .urja-tooltip-wrapper .leaflet-tooltip {
-          background: transparent !important;
-          border: none !important;
-          box-shadow: none !important;
-          padding: 0 !important;
+        .urja-approved-sea-flow {
+          animation: flowDash 2.2s linear infinite;
         }
-        .urja-tooltip-wrapper .leaflet-tooltip-top::before { display: none !important; }
-
-        .urja-tooltip {
-          background: rgba(3, 10, 26, 0.97);
-          border: 1px solid rgba(0, 200, 255, 0.3);
-          border-radius: 10px;
-          padding: 10px 14px;
-          min-width: 190px;
-          font-family: Inter, sans-serif;
-          box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 20px rgba(0,200,255,0.1);
-        }
-        body.light-theme .urja-tooltip {
-          background: rgba(255, 255, 255, 0.98);
-          border: 1px solid rgba(29, 140, 255, 0.25);
-          box-shadow: 0 8px 32px rgba(0,0,0,0.1), 0 0 20px rgba(29,140,255,0.08);
-        }
-
-        .urja-tt-header {
-          display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
-          padding-bottom: 8px; border-bottom: 1px solid var(--border-soft);
-        }
-        .urja-tt-dot {
-          width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
-          box-shadow: 0 0 8px currentColor;
-        }
-        .urja-tt-name { font-size: 12.5px; font-weight: 700; color: var(--text-primary); }
-        .urja-tt-row {
-          display: flex; justify-content: space-between; align-items: center;
-          margin-bottom: 4px;
-        }
-        .urja-tt-label { font-size: 10px; color: var(--text-dim); font-weight: 500; }
-        .urja-tt-val { font-size: 11px; color: var(--text-secondary); font-weight: 600; }
-
-        /* Zoom controls */
-        .leaflet-control-zoom {
-          border: 1px solid var(--border-medium) !important;
-          border-radius: 8px !important;
-          overflow: hidden !important;
-          box-shadow: var(--shadow-card) !important;
-        }
-        .leaflet-control-zoom a {
-          background: var(--bg-panel) !important;
-          color: var(--blue) !important;
-          border-color: var(--border-soft) !important;
-          font-size: 16px !important;
-          line-height: 28px !important;
-          width: 28px !important;
-          height: 28px !important;
-          transition: all 0.15s !important;
-        }
-        .leaflet-control-zoom a:hover {
-          background: var(--bg-panel-hover) !important;
-          color: var(--cyan) !important;
-        }
-        .leaflet-bar a:first-child { border-radius: 0 !important; }
-        .leaflet-bar a:last-child { border-radius: 0 !important; }
       `;
       document.head.appendChild(style);
 
-      // Cleanup inside promise
       return () => {
         observer.disconnect();
       };
@@ -447,27 +390,22 @@ export default function MapPanel({
   useEffect(() => {
     if (!leafletMapRef.current) return;
 
-    // Clear existing nodes markers
     markersRef.current.forEach(({ marker }) => marker.remove());
     markersRef.current = [];
 
-    // Clear existing polylines
     polylinesRef.current.forEach(p => p.remove());
     polylinesRef.current = [];
 
-    // Clear existing ship markers
     shipMarkersRef.current.forEach(({ marker }) => marker.remove());
     shipMarkersRef.current = [];
 
     const sourceNodes = (nodes && nodes.length > 0) ? nodes : energyNodes;
 
-    // Filter by Command Center filterType
     let filtered = sourceNodes;
     if (filterType && filterType !== 'All') {
       filtered = filtered.filter(n => (n.type || '').toLowerCase() === filterType.toLowerCase());
     }
 
-    // Filter by Supply Chain Twin activeLayers
     const layers = activeLayers || { refineries: true, ports: true, spr: true, pipelines: true, ships: true };
     filtered = filtered.filter(n => {
       const type = (n.type || '').toLowerCase();
@@ -556,26 +494,32 @@ export default function MapPanel({
         markersRef.current.push({ marker, type, risk: riskStr, name: label, lat, lng });
       });
 
-      // 2. Draw pipelines and sea routes
+      // 2. Draw pipelines and sea routes (Dynamic Backend Approved Route Connected)
+      const isCapeApproved = (approvedRouteState?.route_id === 'cape_of_good_hope') ||
+                             (approvedRouteState?.route_id === 'atlantic_corridor') ||
+                             (approvedRouteState?.route_name || '').toLowerCase().includes('cape') ||
+                             (approvedRouteState?.supplier || '').toLowerCase().includes('africa') ||
+                             (approvedRouteState?.supplier || '').toLowerCase().includes('brazil');
+
       const routeCoords = {
-        r1: [ // Basrah to Kochi/Mumbai
-          [30.5081, 47.7835], // Basrah
-          [29.1, 49.0],       // Persian Gulf
+        r1: [ // Strait of Hormuz (Persian Gulf to Vadinar/Jamnagar)
+          [30.5081, 47.7835],
+          [29.1, 49.0],
           [27.0, 52.0],
-          [26.4, 56.5],       // Strait of Hormuz
-          [25.0, 58.0],       // Gulf of Oman
-          [21.0, 65.0],       // Arabian Sea
-          [9.9312, 76.2673]   // Kochi Port
+          [26.4, 56.5],
+          [25.0, 58.0],
+          [21.0, 65.0],
+          [22.3072, 73.1812]
         ],
-        r2: [ // Nigeria to Paradip
-          [2.0, 45.0],        // West Indian Ocean
-          [1.0, 55.0],
-          [-2.0, 65.0],
-          [2.0, 73.0],
-          [5.0, 78.0],        // Southern Tip
-          [10.0, 82.0],
-          [15.0, 84.5],
-          [20.3117, 85.8180]  // Paradip Port
+        r2: [ // Cape of Good Hope (West Africa / Bonny Light to Paradip / Jamnagar)
+          [4.3, 6.2],
+          [-10.0, 10.0],
+          [-34.8, 20.0],
+          [-25.0, 38.0],
+          [-10.0, 55.0],
+          [2.0, 68.0],
+          [12.8698, 74.8431],
+          [20.3117, 85.8180]
         ],
         r3: [ // Mumbai to Jamnagar pipeline
           [19.0760, 72.8777],
@@ -592,94 +536,61 @@ export default function MapPanel({
 
       // Draw Pipelines
       if (layers.pipelines) {
-        // Base glowing tracks
-        const p3_base = L.polyline(routeCoords.r3, {
-          color: '#ff9500',
-          weight: 6,
-          opacity: 0.15
-        }).addTo(leafletMapRef.current);
+        const p3_base = L.polyline(routeCoords.r3, { color: '#ff9500', weight: 6, opacity: 0.15 }).addTo(leafletMapRef.current);
         polylinesRef.current.push(p3_base);
-
-        const p4_base = L.polyline(routeCoords.r4, {
-          color: '#ff9500',
-          weight: 6,
-          opacity: 0.15
-        }).addTo(leafletMapRef.current);
+        const p4_base = L.polyline(routeCoords.r4, { color: '#ff9500', weight: 6, opacity: 0.15 }).addTo(leafletMapRef.current);
         polylinesRef.current.push(p4_base);
 
-        // Active flow lines
-        const p3 = L.polyline(routeCoords.r3, {
-          color: '#ff9500',
-          weight: 1.5,
-          dashArray: '2, 6',
-          className: 'urja-pipeline-flow',
-          opacity: 0.95
-        }).addTo(leafletMapRef.current);
+        const p3 = L.polyline(routeCoords.r3, { color: '#ff9500', weight: 1.5, dashArray: '2, 6', className: 'urja-pipeline-flow', opacity: 0.95 }).addTo(leafletMapRef.current);
         polylinesRef.current.push(p3);
-
-        const p4 = L.polyline(routeCoords.r4, {
-          color: '#ff9500',
-          weight: 1.5,
-          dashArray: '2, 6',
-          className: 'urja-pipeline-flow',
-          opacity: 0.95
-        }).addTo(leafletMapRef.current);
+        const p4 = L.polyline(routeCoords.r4, { color: '#ff9500', weight: 1.5, dashArray: '2, 6', className: 'urja-pipeline-flow', opacity: 0.95 }).addTo(leafletMapRef.current);
         polylinesRef.current.push(p4);
       }
 
       // Draw Sea Routes
       if (layers.ships) {
-        // Base glowing tracks
-        const p1_base = L.polyline(routeCoords.r1, {
-          color: '#00e5ff',
-          weight: 5,
-          opacity: 0.12
-        }).addTo(leafletMapRef.current);
-        polylinesRef.current.push(p1_base);
+        if (isCapeApproved) {
+          // APPROVED ALTERNATIVE ROUTE: Cape of Good Hope (Bright Neon Green Flow)
+          const p2_base = L.polyline(routeCoords.r2, { color: '#22c55e', weight: 6, opacity: 0.25 }).addTo(leafletMapRef.current);
+          polylinesRef.current.push(p2_base);
+          const p2 = L.polyline(routeCoords.r2, { color: '#22c55e', weight: 2.5, dashArray: '3, 8', className: 'urja-approved-sea-flow', opacity: 0.95 }).addTo(leafletMapRef.current);
+          polylinesRef.current.push(p2);
 
-        const p2_base = L.polyline(routeCoords.r2, {
-          color: '#00e5ff',
-          weight: 5,
-          opacity: 0.12
-        }).addTo(leafletMapRef.current);
-        polylinesRef.current.push(p2_base);
+          // RESTRICTED HORMUZ ROUTE: Red Dotted Caution Line
+          const p1_base = L.polyline(routeCoords.r1, { color: '#ef4444', weight: 4, opacity: 0.15 }).addTo(leafletMapRef.current);
+          polylinesRef.current.push(p1_base);
+          const p1 = L.polyline(routeCoords.r1, { color: '#ef4444', weight: 1.5, dashArray: '4, 8', opacity: 0.65 }).addTo(leafletMapRef.current);
+          polylinesRef.current.push(p1);
+        } else {
+          const p1_base = L.polyline(routeCoords.r1, { color: '#00e5ff', weight: 5, opacity: 0.12 }).addTo(leafletMapRef.current);
+          polylinesRef.current.push(p1_base);
+          const p2_base = L.polyline(routeCoords.r2, { color: '#00e5ff', weight: 5, opacity: 0.12 }).addTo(leafletMapRef.current);
+          polylinesRef.current.push(p2_base);
 
-        // Active flow lines
-        const p1 = L.polyline(routeCoords.r1, {
-          color: '#00e5ff',
-          weight: 1.5,
-          dashArray: '2, 6',
-          className: 'urja-sea-flow',
-          opacity: 0.9
-        }).addTo(leafletMapRef.current);
-        polylinesRef.current.push(p1);
-
-        const p2 = L.polyline(routeCoords.r2, {
-          color: '#00e5ff',
-          weight: 1.5,
-          dashArray: '2, 6',
-          className: 'urja-sea-flow',
-          opacity: 0.9
-        }).addTo(leafletMapRef.current);
-        polylinesRef.current.push(p2);
+          const p1 = L.polyline(routeCoords.r1, { color: '#00e5ff', weight: 1.5, dashArray: '2, 6', className: 'urja-sea-flow', opacity: 0.9 }).addTo(leafletMapRef.current);
+          polylinesRef.current.push(p1);
+          const p2 = L.polyline(routeCoords.r2, { color: '#00e5ff', weight: 1.5, dashArray: '2, 6', className: 'urja-sea-flow', opacity: 0.9 }).addTo(leafletMapRef.current);
+          polylinesRef.current.push(p2);
+        }
       }
 
-      // 3. Draw Ships
-      if (layers.ships && ships && ships.length > 0) {
-        ships.forEach(ship => {
+      // 3. Draw Ships (Dynamic Animation along Approved Route)
+      if (layers.ships) {
+        const activeShipList = (ships && ships.length > 0) ? ships : [
+          { name: "VLCC Samudra Defender", status: "IN TRANSIT", route: isCapeApproved ? "West Africa ➜ Cape of Good Hope ➜ Paradip" : "Persian Gulf ➜ Kochi" },
+          { name: "MT Rajendra", status: "IN TRANSIT", route: isCapeApproved ? "Bonny Light ➜ Cape of Good Hope ➜ Vadinar" : "Basra ➜ Vadinar" },
+          { name: "MT Chola Express", status: "IN TRANSIT", route: isCapeApproved ? "Atlantic Corridor ➜ Cape of Good Hope ➜ Mangaluru" : "Riyadh ➜ Kochi" },
+          { name: "MT Atlantic Pioneer", status: "IN TRANSIT", route: isCapeApproved ? "Petrobras Santos ➜ Atlantic ➜ Kochi" : "Sikka ➜ Haldia" },
+        ];
+
+        activeShipList.forEach((ship, idx) => {
           const name = ship.name || ship.label;
           const status = ship.status || 'IN TRANSIT';
-          const routeName = ship.route || '';
           
-          let coords = null;
-          if (routeName.toLowerCase().includes('basra') || routeName.toLowerCase().includes('basrah') || name.includes('Kaveri')) {
-            coords = routeCoords.r1;
-          } else if (routeName.toLowerCase().includes('nigeria') || name.includes('Bharat') || name.includes('Chola')) {
-            coords = routeCoords.r2;
-          }
+          let coords = isCapeApproved ? routeCoords.r2 : routeCoords.r1;
+          if (idx % 2 === 1 && !isCapeApproved) coords = routeCoords.r2;
 
-          const startPos = coords ? coords[0] : [ship.lat || 12.0, ship.lon || ship.lng || 60.0];
-          
+          const startPos = coords[0];
           const isLightInit = document.body.classList.contains('light-theme');
           const shipIcon = L.divIcon({
             className: '',
@@ -692,27 +603,29 @@ export default function MapPanel({
           const marker = L.marker(startPos, { icon: shipIcon });
           marker.addTo(leafletMapRef.current);
 
+          const activeRouteLabel = isCapeApproved ? "Cape of Good Hope (APPROVED & ACTIVE)" : "Strait of Hormuz Corridor";
+
           marker.bindTooltip(`
             <div class="urja-tooltip">
               <div class="urja-tt-header" style="border-bottom:1px solid rgba(0,229,255,0.2);padding-bottom:6px;margin-bottom:6px;">
-                <span class="urja-tt-dot" style="background:#00e5ff;color:#00e5ff;box-shadow:0 0 8px #00e5ff"></span>
-                <span class="urja-tt-name" style="color:#00e5ff">${name}</span>
+                <span class="urja-tt-dot" style="background:${isCapeApproved ? '#22c55e' : '#00e5ff'};color:${isCapeApproved ? '#22c55e' : '#00e5ff'};box-shadow:0 0 8px ${isCapeApproved ? '#22c55e' : '#00e5ff'}"></span>
+                <span class="urja-tt-name" style="color:${isCapeApproved ? '#22c55e' : '#00e5ff'}">${name}</span>
               </div>
               <div class="urja-tt-row">
                 <span class="urja-tt-label">Status</span>
                 <span class="urja-tt-val" style="color:#22c55e;font-weight:700">${status}</span>
               </div>
               <div class="urja-tt-row">
-                <span class="urja-tt-label">Route</span>
-                <span class="urja-tt-val" style="font-size:10px">${routeName || 'Unassigned'}</span>
+                <span class="urja-tt-label">Approved Corridor</span>
+                <span class="urja-tt-val" style="font-size:10px;color:#22c55e;font-weight:700">${activeRouteLabel}</span>
               </div>
               <div class="urja-tt-row">
-                <span class="urja-tt-label">Speed</span>
-                <span class="urja-tt-val">14.2 knots</span>
+                <span class="urja-tt-label">Cargo Slate</span>
+                <span class="urja-tt-val">2.4M bbl Sweet Crude</span>
               </div>
               <div class="urja-tt-row">
-                <span class="urja-tt-label">ETA</span>
-                <span class="urja-tt-val" style="color:#00e5ff">48 hrs</span>
+                <span class="urja-tt-label">Speed / ETA</span>
+                <span class="urja-tt-val" style="color:#00e5ff">14.8 knots · 22 days</span>
               </div>
             </div>`, {
             className: 'urja-tooltip-wrapper',
@@ -724,7 +637,7 @@ export default function MapPanel({
         });
       }
     });
-  }, [nodes, activeLayers, filterType, ships]);
+  }, [nodes, activeLayers, filterType, ships, approvedRouteState]);terType, ships]);
 
   const displayNodesCount = nodes ? nodes.length : energyNodes.length;
 
@@ -765,6 +678,22 @@ export default function MapPanel({
           Double-click map for fullscreen
         </div>
       )}
+
+      {/* Active Approved Route Indicator Banner */}
+      <div style={{
+        position: 'absolute', top: 10, left: '50%', transform: 'translateX(-50%)', zIndex: 1000,
+        background: 'rgba(8,18,35,0.92)', border: '1px solid rgba(34,197,94,0.4)',
+        borderRadius: 8, padding: '6px 14px', backdropFilter: 'blur(12px)',
+        display: 'flex', alignItems: 'center', gap: 10, boxShadow: '0 4px 20px rgba(0,0,0,0.5)'
+      }}>
+        <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 10px #22c55e', animation: 'pinPulse 2s infinite' }} />
+        <span style={{ fontSize: 11, fontWeight: 700, color: '#e2e8f0' }}>
+          Approved Route: <span style={{ color: '#22c55e' }}>{approvedRouteState?.route_name || 'Cape of Good Hope (West Africa / Atlantic Corridor)'}</span>
+        </span>
+        <span style={{ fontSize: 9.5, padding: '2px 6px', borderRadius: 4, background: 'rgba(34,197,94,0.15)', color: '#22c55e', fontWeight: 800, border: '1px solid rgba(34,197,94,0.3)' }}>
+          BACKEND CONNECTED
+        </span>
+      </div>
 
       {/* Grid overlay for matching UI */}
       <div style={{

@@ -322,7 +322,16 @@ export default function CommandCenter() {
               <h3 className="card-title">India Energy Risk Map</h3>
               <p className="card-subtitle" style={{ marginBottom: 0 }}>Live node status · Supply chain visualization</p>
             </div>
-            <div style={{ display: 'flex', gap: 6 }}>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <button
+                onClick={() => handleAction('Approve Procurement Plan')}
+                style={{
+                  padding: '4px 12px', borderRadius: 6, background: '#22c55e', color: '#000',
+                  fontWeight: 800, fontSize: 11, border: 'none', cursor: 'pointer', marginRight: 6
+                }}
+              >
+                ⚡ Approve & Reroute Corridors
+              </button>
               {['All', 'Refinery', 'Port', 'SPR', 'Pipeline'].map(f => (
                 <button key={f} onClick={() => setMapFilter(f)} style={{
                   padding: '3px 10px', borderRadius: 20, border: 'none', cursor: 'pointer',

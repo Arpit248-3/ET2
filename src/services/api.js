@@ -201,6 +201,36 @@ export const generateBrief = async (payload = {}) => {
   return adaptBrief(data);
 };
 
+// ─── Route Approval ────────────────────────────────────────────────────────
+export const approveProcurementRoute = async (payload) => {
+  const data = await apiFetch('/procurement/approve-route', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  if (data?.approved_route) {
+    try {
+      localStorage.setItem('urja_approved_route', JSON.stringify(data.approved_route));
+      window.dispatchEvent(new CustomEvent('urja-route-approved', { detail: data.approved_route }));
+    } catch (e) {
+      console.warn('LocalStorage save error:', e);
+    }
+  }
+  return data;
+};
+
+export const fetchApprovedRoute = async () => {
+  try {
+    const data = await apiFetch('/procurement/approved-route');
+    if (data) {
+      localStorage.setItem('urja_approved_route', JSON.stringify(data));
+    }
+    return data;
+  } catch (err) {
+    const cached = localStorage.getItem('urja_approved_route');
+    return cached ? JSON.parse(cached) : null;
+  }
+};
+
 // ─── Decisions ─────────────────────────────────────────────────────────────
 export const recordDecision = async (payload = {}) => {
   const merged = {
