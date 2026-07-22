@@ -6,9 +6,10 @@ from app.config import settings
 
 logger = logging.getLogger("urjanetra.mail")
 
-async def send_email_safe(subject: str, recipients: list[str], body: str):
+def send_email_safe(subject: str, recipients: list[str], body: str):
     """
-    Sends real email via SMTP (using standard smtplib for maximum reliability).
+    Sends real email via SMTP (using standard synchronous smtplib).
+    Executed in threadpool worker by FastAPI BackgroundTasks.
     Supports Gmail (smtp.gmail.com:587) with App Password.
     """
     logger.info(f"[MAIL OUTBOX] Preparing email to {recipients} | Subject: {subject}")
