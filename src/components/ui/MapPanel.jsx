@@ -539,72 +539,79 @@ export default function MapPanel({
         markersRef.current.push({ marker, type, risk: riskStr, name: label, lat, lng });
       });
 
-      // 2. Draw pipelines and sea routes (6 Smooth Catmull-Rom Spline Nautical Routes)
+      // 2. Draw pipelines and sea routes (6 Smooth Catmull-Rom Spline Deep-Sea Routes)
       const ALL_MARITIME_ROUTES = {
         west_africa: generateSmoothCurve([
-          [4.3, 6.2],         // Lagos / West Africa Port
-          [-5.0, 3.0],        // Gulf of Guinea Arc
-          [-20.0, 5.0],       // South Atlantic Ocean
-          [-34.8, 18.5],      // Cape of Good Hope
-          [-35.5, 23.0],      // Agulhas Current Coast Curve
-          [-28.0, 36.0],      // Mozambique Channel Entrance
-          [-16.0, 46.0],      // Mozambique Channel Mid
-          [-5.0, 58.0],       // Western Indian Ocean Arc
-          [5.0, 68.0],        // Laccadive Sea / Open Arabian Sea (WEST of Sri Lanka, ZERO LAND CUTTING)
-          [12.0, 70.0],       // Open Arabian Sea
-          [19.5, 70.2],       // Gulf of Khambhat Entrance
+          [4.3, 6.2],         // Lagos / West Africa Port Entrance
+          [-5.0, 2.0],        // Gulf of Guinea Open Ocean
+          [-20.0, 3.0],       // South Atlantic Open Ocean
+          [-35.0, 16.0],      // Deep Offshore Cape of Good Hope
+          [-36.0, 24.0],      // Deep Offshore Agulhas Current
+          [-28.0, 42.0],      // Mozambique Channel Deep Channel
+          [-14.0, 50.0],      // West Madagascar Open Sea
+          [-2.0, 58.0],       // Equator Open Indian Ocean
+          [5.0, 64.0],        // Deep Arabian Sea (900 km WEST of Sri Lanka / Kerala)
+          [13.0, 66.0],       // Deep Arabian Sea (700 km WEST of Goa)
+          [18.5, 68.5],       // Arabian Sea North (400 km WEST of Mumbai)
+          [21.2, 69.8],       // Gulf of Kutch Coastal Entrance Channel
           [22.3072, 73.1812]  // Jamnagar / Vadinar Terminal
         ], 24),
         saudi_hormuz: generateSmoothCurve([
           [27.0, 50.0],       // Ras Tanura / Persian Gulf
-          [26.8, 52.8],
-          [26.4, 56.5],       // Strait of Hormuz
-          [24.8, 58.8],       // Gulf of Oman
-          [21.5, 63.5],       // Open Arabian Sea
-          [20.0, 68.0],
+          [26.6, 53.0],       // Persian Gulf Open Channel
+          [26.2, 56.4],       // Strait of Hormuz Deep Channel
+          [24.5, 58.8],       // Gulf of Oman Deep Waters
+          [21.5, 64.0],       // Open Arabian Sea
+          [21.2, 69.0],       // Gulf of Kutch Coastal Entrance
           [22.3072, 73.1812]  // Vadinar Terminal
         ], 24),
         brazil_atlantic: generateSmoothCurve([
           [-23.9, -46.3],     // Santos Port, Brazil
-          [-28.0, -28.0],     // Mid South Atlantic Arc
-          [-35.0, -5.0],      // South Atlantic Deep
-          [-36.5, 18.0],      // Cape of Good Hope Curve
-          [-30.0, 34.0],      // Indian Ocean Entrance
-          [-18.0, 48.0],      // Madagascar East Pass
-          [-3.0, 62.0],       // Central Indian Ocean Arc
-          [6.0, 68.0],        // Laccadive Sea (WEST of India, NO LAND CUTTING)
-          [12.8698, 74.8431], // Mangaluru Port
+          [-28.0, -32.0],     // Mid South Atlantic Open Sea
+          [-35.0, -10.0],     // Deep South Atlantic
+          [-36.5, 16.0],      // Deep Offshore Cape of Good Hope
+          [-32.0, 35.0],      // Southern Indian Ocean Deep Sea
+          [-18.0, 50.0],      // East Madagascar Deep Waters
+          [-2.0, 60.0],       // Equator Open Indian Ocean
+          [5.0, 64.0],        // Deep Arabian Sea (900 km WEST of India)
+          [13.0, 66.0],       // Deep Arabian Sea (700 km WEST of Goa)
+          [18.5, 68.5],       // Arabian Sea North
+          [21.2, 69.8],       // Gulf of Kutch Coastal Entrance
           [22.3072, 73.1812]  // Vadinar Terminal
         ], 24),
         uae_hormuz: generateSmoothCurve([
-          [25.3, 56.3],       // Fujairah Port (Gulf of Oman)
-          [24.2, 59.0],       // Gulf of Oman
-          [21.0, 64.0],       // Arabian Sea
-          [20.0, 68.0],
+          [25.3, 56.5],       // Fujairah Port Entrance
+          [24.2, 59.0],       // Gulf of Oman Deep Waters
+          [21.0, 64.0],       // Open Arabian Sea
+          [21.2, 69.0],       // Gulf of Kutch Coastal Entrance
           [22.3072, 73.1812]  // Vadinar Terminal
         ], 24),
         russia_arctic: generateSmoothCurve([
-          [68.97, 33.07],     // Murmansk / Arctic Port
-          [62.0, 8.0],        // Norwegian Sea Arc
-          [54.0, -3.0],       // North Sea / English Channel
-          [38.0, -12.0],      // Atlantic Coast
-          [15.0, -18.0],      // West Africa Atlantic
-          [-15.0, -5.0],      // South Atlantic
-          [-36.5, 18.0],      // Cape of Good Hope Curve
-          [-20.0, 48.0],      // Indian Ocean
-          [0.0, 62.0],        // Equator Arc
-          [14.0, 69.0],       // Open Arabian Sea
+          [68.97, 33.07],     // Murmansk / Arctic Port Entrance
+          [62.0, 4.0],        // Norwegian Sea Deep Waters
+          [54.0, -5.0],       // Atlantic Ocean West of UK
+          [38.0, -15.0],      // North Atlantic Deep Waters
+          [15.0, -20.0],      // Mid Atlantic Ocean
+          [-15.0, -8.0],      // South Atlantic Deep Sea
+          [-36.5, 16.0],      // Deep Offshore Cape of Good Hope
+          [-20.0, 48.0],      // Southern Indian Ocean
+          [0.0, 60.0],        // Equator Open Indian Ocean
+          [6.0, 64.0],        // Deep Arabian Sea
+          [18.5, 68.5],       // Arabian Sea North
+          [21.2, 69.8],       // Gulf of Kutch Coastal Entrance
           [22.3072, 73.1812]  // Vadinar Terminal
         ], 24),
         usa_wti: generateSmoothCurve([
-          [29.7, -95.3],      // Houston Port, US Gulf
-          [24.5, -82.0],      // Straits of Florida
-          [18.0, -55.0],      // Mid Atlantic Arc
-          [-10.0, -25.0],     // South Atlantic
-          [-36.5, 18.0],      // Cape of Good Hope Curve
-          [-15.0, 52.0],      // Indian Ocean Arc
-          [5.0, 68.0],        // Arabian Sea
-          [9.9312, 76.2673],  // Kochi Port
+          [29.7, -94.8],      // Houston Port Entrance
+          [24.5, -82.0],      // Straits of Florida Channel
+          [18.0, -55.0],      // Mid Atlantic Ocean
+          [-10.0, -25.0],     // South Atlantic Ocean
+          [-36.5, 16.0],      // Deep Offshore Cape of Good Hope
+          [-15.0, 52.0],      // Indian Ocean Open Waters
+          [5.0, 64.0],        // Deep Arabian Sea
+          [13.0, 66.0],       // Deep Arabian Sea
+          [18.5, 68.5],       // Arabian Sea North
+          [21.2, 69.8],       // Gulf of Kutch Coastal Entrance
           [22.3072, 73.1812]  // Vadinar Terminal
         ], 24)
       };
