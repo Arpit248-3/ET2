@@ -546,12 +546,12 @@ export default function MapPanel({
           [-5.0, 2.0],        // Gulf of Guinea Open Ocean
           [-20.0, 3.0],       // South Atlantic Open Ocean
           [-35.0, 16.0],      // Deep Offshore Cape of Good Hope
-          [-36.0, 24.0],      // Deep Offshore Agulhas Current
-          [-28.0, 42.0],      // Mozambique Channel Deep Channel
-          [-14.0, 50.0],      // West Madagascar Open Sea
-          [-2.0, 58.0],       // Equator Open Indian Ocean
-          [5.0, 64.0],        // Deep Arabian Sea (900 km WEST of Sri Lanka / Kerala)
-          [13.0, 66.0],       // Deep Arabian Sea (700 km WEST of Goa)
+          [-36.0, 28.0],      // Deep Offshore Agulhas Basin
+          [-30.0, 42.0],      // Deep Indian Ocean South
+          [-20.0, 58.0],      // Mascarene Basin (800 km EAST of Madagascar, ZERO LAND CROSSING)
+          [-5.0, 62.0],       // Central Indian Ocean Arc
+          [2.0, 64.0],        // Equator Open Indian Ocean
+          [10.0, 65.0],       // Deep Arabian Sea (800 km WEST of India/Sri Lanka)
           [18.5, 68.5],       // Arabian Sea North (400 km WEST of Mumbai)
           [21.2, 69.8],       // Gulf of Kutch Coastal Entrance Channel
           [22.3072, 73.1812]  // Jamnagar / Vadinar Terminal
@@ -566,15 +566,15 @@ export default function MapPanel({
           [22.3072, 73.1812]  // Vadinar Terminal
         ], 24),
         brazil_atlantic: generateSmoothCurve([
-          [-23.9, -46.3],     // Santos Port, Brazil
+          [-23.9, -46.3],     // Santos Port, Brazil Entrance
           [-28.0, -32.0],     // Mid South Atlantic Open Sea
           [-35.0, -10.0],     // Deep South Atlantic
           [-36.5, 16.0],      // Deep Offshore Cape of Good Hope
-          [-32.0, 35.0],      // Southern Indian Ocean Deep Sea
-          [-18.0, 50.0],      // East Madagascar Deep Waters
-          [-2.0, 60.0],       // Equator Open Indian Ocean
-          [5.0, 64.0],        // Deep Arabian Sea (900 km WEST of India)
-          [13.0, 66.0],       // Deep Arabian Sea (700 km WEST of Goa)
+          [-35.0, 30.0],      // Southern Indian Ocean Deep Sea
+          [-22.0, 58.0],      // Mascarene Basin (800 km EAST of Madagascar, ZERO LAND CROSSING)
+          [-5.0, 62.0],       // Central Indian Ocean Arc
+          [2.0, 64.0],        // Equator Open Indian Ocean
+          [10.0, 65.0],       // Deep Arabian Sea (800 km WEST of India)
           [18.5, 68.5],       // Arabian Sea North
           [21.2, 69.8],       // Gulf of Kutch Coastal Entrance
           [22.3072, 73.1812]  // Vadinar Terminal
@@ -594,9 +594,10 @@ export default function MapPanel({
           [15.0, -20.0],      // Mid Atlantic Ocean
           [-15.0, -8.0],      // South Atlantic Deep Sea
           [-36.5, 16.0],      // Deep Offshore Cape of Good Hope
-          [-20.0, 48.0],      // Southern Indian Ocean
-          [0.0, 60.0],        // Equator Open Indian Ocean
-          [6.0, 64.0],        // Deep Arabian Sea
+          [-30.0, 42.0],      // Deep Indian Ocean
+          [-20.0, 58.0],      // Mascarene Basin (800 km EAST of Madagascar)
+          [-5.0, 62.0],       // Central Indian Ocean Arc
+          [10.0, 65.0],       // Open Arabian Sea
           [18.5, 68.5],       // Arabian Sea North
           [21.2, 69.8],       // Gulf of Kutch Coastal Entrance
           [22.3072, 73.1812]  // Vadinar Terminal
@@ -607,9 +608,10 @@ export default function MapPanel({
           [18.0, -55.0],      // Mid Atlantic Ocean
           [-10.0, -25.0],     // South Atlantic Ocean
           [-36.5, 16.0],      // Deep Offshore Cape of Good Hope
-          [-15.0, 52.0],      // Indian Ocean Open Waters
-          [5.0, 64.0],        // Deep Arabian Sea
-          [13.0, 66.0],       // Deep Arabian Sea
+          [-30.0, 42.0],      // Indian Ocean Deep Sea
+          [-20.0, 58.0],      // Mascarene Basin (800 km EAST of Madagascar)
+          [-5.0, 62.0],       // Central Indian Ocean Arc
+          [10.0, 65.0],       // Deep Arabian Sea
           [18.5, 68.5],       // Arabian Sea North
           [21.2, 69.8],       // Gulf of Kutch Coastal Entrance
           [22.3072, 73.1812]  // Vadinar Terminal
