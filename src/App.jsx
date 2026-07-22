@@ -1,20 +1,8 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastProvider } from './components/ui/Toast.jsx';
-import { AuthProvider } from './context/AuthContext.jsx';
 import { ScenarioProvider } from './context/ScenarioContext.jsx';
 import { PipelineProvider } from './context/PipelineContext.jsx';
-
-// Auth Pages
-import Login from './pages/public/Login.jsx';
-import Register from './pages/public/Register.jsx';
-import ForgotPassword from './pages/public/ForgotPassword.jsx';
-import VerifyOTP from './pages/public/VerifyOTP.jsx';
-import ResetPassword from './pages/public/ResetPassword.jsx';
-import SecurityVerification from './pages/public/SecurityVerification.jsx';
-import AuthSuccess from './pages/public/AuthSuccess.jsx';
-
-// Dashboard Pages
 import CommandCenter from './pages/dashboard/CommandCenter.jsx';
 import RiskIntelligence from './pages/dashboard/RiskIntelligence.jsx';
 import SupplyChainTwin from './pages/dashboard/SupplyChainTwin.jsx';
@@ -51,60 +39,51 @@ export default function App() {
 
   return (
     <ToastProvider>
-      <AuthProvider>
-        <BrowserRouter>
-          <PipelineProvider>
-            <ScenarioProvider>
-              <Routes>
-                {/* Default Entry Point: Login */}
-                <Route path="/" element={<Navigate to="/login" replace />} />
-                <Route path="/home" element={<Navigate to="/login" replace />} />
+      <BrowserRouter>
+        <PipelineProvider>
+          <ScenarioProvider>
+            <Routes>
+              {/* Default Entry Point: Command Center */}
+              <Route path="/" element={<Navigate to="/command-center" replace />} />
+              <Route path="/home" element={<Navigate to="/command-center" replace />} />
+              <Route path="/login" element={<Navigate to="/command-center" replace />} />
+              <Route path="/register" element={<Navigate to="/command-center" replace />} />
 
-                {/* Classified Authentication System Routes */}
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/verify-otp" element={<VerifyOTP />} />
-                <Route path="/reset-password" element={<ResetPassword />} />
-                <Route path="/security-verification" element={<SecurityVerification />} />
-                <Route path="/auth-success" element={<AuthSuccess />} />
+              {/* Direct Dashboard Routes */}
+              <Route path="/command-center" element={<CommandCenter />} />
+              <Route path="/risk-intelligence" element={<RiskIntelligence />} />
+              <Route path="/supply-chain-twin" element={<SupplyChainTwin />} />
+              <Route path="/scenario-simulator" element={<ScenarioSimulator />} />
+              <Route path="/economic-impact" element={<EconomicImpact />} />
+              <Route path="/procurement-optimizer" element={<ProcurementOptimizer />} />
+              <Route path="/refinery-compatibility" element={<RefineryCompatibility />} />
+              <Route path="/spr-planner" element={<SPRPlanner />} />
+              <Route path="/compliance-shield" element={<ComplianceShield />} />
+              <Route path="/red-team-validator" element={<RedTeamValidator />} />
+              <Route path="/action-brief" element={<ActionBrief />} />
+              <Route path="/ai-copilot" element={<AICopilot />} />
+              <Route path="/explainable-ai" element={<ExplainableAI />} />
+              <Route path="/executive-decision-board" element={<ExecutiveDecisionBoard />} />
+              <Route path="/notifications" element={<Notifications />} />
+              <Route path="/reports" element={<ReportsLibrary />} />
+              <Route path="/audit-logs" element={<AuditLogs />} />
+              <Route path="/user-management" element={<UserManagement />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/timeline-replay" element={<TimelineReplay />} />
+              <Route path="/collaboration-room" element={<CollaborationRoom />} />
+              <Route path="/data-sources" element={<DataSources />} />
+              <Route path="/help" element={<HelpCenter />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/crisis-mode" element={<CrisisMode />} />
+              <Route path="/demo-mode" element={<DemoMode />} />
+              <Route path="/settings/thresholds-alerts" element={<ThresholdsAlerts />} />
 
-                {/* Command Platform Dashboard Routes */}
-                <Route path="/command-center" element={<CommandCenter />} />
-                <Route path="/risk-intelligence" element={<RiskIntelligence />} />
-                <Route path="/supply-chain-twin" element={<SupplyChainTwin />} />
-                <Route path="/scenario-simulator" element={<ScenarioSimulator />} />
-                <Route path="/economic-impact" element={<EconomicImpact />} />
-                <Route path="/procurement-optimizer" element={<ProcurementOptimizer />} />
-                <Route path="/refinery-compatibility" element={<RefineryCompatibility />} />
-                <Route path="/spr-planner" element={<SPRPlanner />} />
-                <Route path="/compliance-shield" element={<ComplianceShield />} />
-                <Route path="/red-team-validator" element={<RedTeamValidator />} />
-                <Route path="/action-brief" element={<ActionBrief />} />
-                <Route path="/ai-copilot" element={<AICopilot />} />
-                <Route path="/explainable-ai" element={<ExplainableAI />} />
-                <Route path="/executive-decision-board" element={<ExecutiveDecisionBoard />} />
-                <Route path="/notifications" element={<Notifications />} />
-                <Route path="/reports" element={<ReportsLibrary />} />
-                <Route path="/audit-logs" element={<AuditLogs />} />
-                <Route path="/user-management" element={<UserManagement />} />
-                <Route path="/settings" element={<SettingsPage />} />
-                <Route path="/timeline-replay" element={<TimelineReplay />} />
-                <Route path="/collaboration-room" element={<CollaborationRoom />} />
-                <Route path="/data-sources" element={<DataSources />} />
-                <Route path="/help" element={<HelpCenter />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/crisis-mode" element={<CrisisMode />} />
-                <Route path="/demo-mode" element={<DemoMode />} />
-                <Route path="/settings/thresholds-alerts" element={<ThresholdsAlerts />} />
-
-                {/* Catch-all redirect */}
-                <Route path="*" element={<Navigate to="/login" replace />} />
-              </Routes>
-            </ScenarioProvider>
-          </PipelineProvider>
-        </BrowserRouter>
-      </AuthProvider>
+              {/* Catch-all redirect to Command Center */}
+              <Route path="*" element={<Navigate to="/command-center" replace />} />
+            </Routes>
+          </ScenarioProvider>
+        </PipelineProvider>
+      </BrowserRouter>
     </ToastProvider>
   );
 }
