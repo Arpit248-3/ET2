@@ -1,10 +1,11 @@
 """
-POST /api/simulate — Run scenario simulation and return 30-day projection
-Dynamically extracts parameters for any loaded scenario.
+POST /api/simulate — Run scenario simulation and return dynamic n-day projection
+Dynamically extracts parameters and builds smooth, non-linear market trajectories for any loaded scenario.
 """
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
+import math
 
 from app.database import get_db
 from app.models import ScenarioState
@@ -46,7 +47,8 @@ def run_simulation(request: SimulationRequest, db: Session = Depends(get_db)):
         else:
             price_spike = scenario.get("parameters", {}).get("crude_price_spike_usd", 12.0)
     
-    shock = float(price_spike) * request.severity_multiplier
+    mult = float(max(0.1, request.severity_multiplier))
+    shock = float(price_spike) * mult
 
     # Calculate supply gap (M bbl/day)
     raw_gap = (
@@ -59,48 +61,81 @@ def run_simulation(request: SimulationRequest, db: Session = Depends(get_db)):
             raw_gap = float(raw_gap.replace("M bbl/day", "").replace("M", "").strip())
         except ValueError:
             raw_gap = 1.8
-    base_gap = float(raw_gap if raw_gap is not None else 1.8) * float(request.severity_multiplier)
+    base_gap = float(raw_gap if raw_gap is not None else 1.8) * mult
 
     # Risk score & SPR coverage
     kpi_dict = scenario.get("kpi", {})
     raw_risk = float(kpi_dict.get("risk_score") or scenario.get("geopolitical_risk") or scenario.get("parameters", {}).get("geopolitical_risk", 60))
-    base_risk = min(100.0, raw_risk * float(request.severity_multiplier))
+    base_risk = min(100.0, raw_risk * mult)
     spr_start = float(kpi_dict.get("spr_coverage") or scenario.get("parameters", {}).get("inventory_days", 45))
 
     daily_points = []
     spr_level = float(min(100.0, spr_start))
-    drawdown_rate = (base_gap / max(1.0, spr_start)) * 15.0  # Daily depletion rate %
+    total_days = max(10, request.duration_days)
 
-    for d in range(1, request.duration_days + 1):
-        # Shock peaks at day 5, decays over 30 days
-        if d <= 5:
-            shock_factor = d / 5.0
-        elif d <= 15:
-            shock_factor = 1.0
+    for d in range(1, total_days + 1):
+        # Build smooth, non-linear dynamic shock curve per scenario profile
+        norm_t = d / float(total_days)
+
+        if request.scenario_id == "hormuz_closure":
+            # Fast explosive surge peaking at day 6, high plateau, gradual decay
+            if d <= 6:
+                shock_factor = math.sin((d / 6.0) * (math.pi / 2.0))
+            elif d <= 18:
+                shock_factor = 0.96 + 0.04 * math.sin(d * 1.3)
+            else:
+                decay_t = (d - 18) / float(total_days - 18)
+                shock_factor = max(0.15, 1.0 - math.pow(decay_t, 1.3) * 0.85)
+        elif request.scenario_id == "bab_el_mandeb_blockade":
+            # Multi-stage routing delay escalation peaking around day 10
+            if d <= 10:
+                shock_factor = 0.5 * (1.0 - math.cos((d / 10.0) * math.pi))
+            else:
+                decay_t = (d - 10) / float(total_days - 10)
+                shock_factor = max(0.20, 1.0 - 0.80 * math.sin(decay_t * (math.pi / 2.0)))
+        elif request.scenario_id == "cyberattack_pipeline_scada":
+            # Immediate sharp spike on day 3, technical resolution by day 14
+            if d <= 3:
+                shock_factor = (d / 3.0) ** 2
+            elif d <= 14:
+                shock_factor = max(0.1, 1.0 - ((d - 3) / 11.0) * 0.85)
+            else:
+                shock_factor = max(0.05, 0.15 - ((d - 14) / float(total_days - 14)) * 0.1)
         else:
-            shock_factor = max(0.1, 1.0 - (d - 15) / (request.duration_days - 15) * 0.6)
+            # General smooth bell shock curve
+            peak_day = max(4, int(total_days * 0.25))
+            if d <= peak_day:
+                shock_factor = math.sin((d / float(peak_day)) * (math.pi / 2.0))
+            else:
+                decay_t = (d - peak_day) / float(total_days - peak_day)
+                shock_factor = max(0.1, math.cos((decay_t * math.pi) / 2.0))
 
-        brent = round(baseline_brent + shock * shock_factor, 1)
-        risk = int(min(100, max(20, base_risk * (0.5 + 0.5 * shock_factor))))
-        gap = round(base_gap * shock_factor, 2)
+        # Add natural market micro-fluctuations (0.02 * sin) to prevent rigid straight lines
+        noise = 0.02 * math.sin(d * 1.7) + 0.015 * math.cos(d * 2.3)
+        effective_factor = max(0.05, min(1.25, shock_factor + noise))
 
-        # SPR depletes during gap period
-        if gap > 0 and d <= 22:
-            spr_level = max(10.0, spr_level - drawdown_rate)
-        elif d > 22:
-            # Alternate cargo arrives — gap closes & SPR recovers
-            spr_level = min(95.0, spr_level + 0.5)
+        brent = round(baseline_brent + shock * effective_factor, 1)
+        risk = int(min(100, max(20, base_risk * (0.45 + 0.55 * effective_factor))))
+        gap = round(base_gap * effective_factor, 2)
+
+        # Dynamic SPR reserve drawdown & recovery curve
+        if gap > 0.2 and d <= int(total_days * 0.75):
+            daily_drawdown = (base_gap / max(1.0, spr_start)) * 14.0 * effective_factor
+            spr_level = max(10.0, spr_level - daily_drawdown)
+        else:
+            # Alternate procurement cargoes arriving — SPR recovery phase
+            spr_level = min(95.0, spr_level + 0.6)
 
         action = None
         if d == 1:
             action = f"Risk signal detected for {scenario.get('name', 'Scenario')} — Monitoring elevated"
         elif d == 3:
-            action = f"SPR drawdown of {base_gap}M bbl/day authorized"
+            action = f"SPR drawdown of {base_gap:.1f}M bbl/day authorized"
         elif d == 5:
             action = f"Alternate procurement orders placed ({scenario.get('safe_suppliers', ['West Africa'])[0]} route)"
-        elif d == 22:
+        elif d == max(15, int(total_days * 0.7)):
             action = "Alternate cargo vessels arriving — Supply gap closing"
-        elif d == 25:
+        elif d == max(20, int(total_days * 0.85)):
             action = "Supply chain stabilizing — Strategic reserve replenishment active"
 
         daily_points.append(SimulationDayPoint(
@@ -134,7 +169,7 @@ def run_simulation(request: SimulationRequest, db: Session = Depends(get_db)):
 
     alt_suppliers = ", ".join(scenario.get("safe_suppliers", ["West Africa", "Brazil", "USA"])[:2])
     rec_action = (
-        f"Activate strategic reserve drawdown ({base_gap}M bbl/day) and reroute crude procurement to {alt_suppliers} "
+        f"Activate strategic reserve drawdown ({base_gap:.1f}M bbl/day) and reroute crude procurement to {alt_suppliers} "
         f"within 48 hours to mitigate projected ${shock:.1f}/bbl price shock."
     )
 

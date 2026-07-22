@@ -38,6 +38,7 @@ import Profile from './pages/dashboard/Profile.jsx';
 import CrisisMode from './pages/dashboard/CrisisMode.jsx';
 import DemoMode from './pages/dashboard/DemoMode.jsx';
 import ThresholdsAlerts from './pages/dashboard/ThresholdsAlerts.jsx';
+import AdminPortal from './pages/dashboard/AdminPortal.jsx';
 
 // Protected Route wrapper
 function ProtectedRoute({ children }) {
@@ -94,6 +95,7 @@ function AppRoutes() {
       <Route path="/crisis-mode" element={<ProtectedRoute><CrisisMode /></ProtectedRoute>} />
       <Route path="/demo-mode" element={<ProtectedRoute><DemoMode /></ProtectedRoute>} />
       <Route path="/settings/thresholds-alerts" element={<ProtectedRoute><ThresholdsAlerts /></ProtectedRoute>} />
+      <Route path="/admin" element={<ProtectedRoute><AdminPortal /></ProtectedRoute>} />
 
       {/* Catch-all */}
       <Route path="*" element={<Navigate to={isAuthenticated ? "/command-center" : "/login"} replace />} />

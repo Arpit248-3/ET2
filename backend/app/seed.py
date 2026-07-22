@@ -1,13 +1,14 @@
 """
-Database seeder -- populates initial ScenarioState, audit log entries, and dashboard components.
+Database seeder -- populates initial ScenarioState, audit log entries, admin user, and sample tickets.
 Run: python -m app.seed
 """
 from app.database import engine, SessionLocal
 from app import models
 from app.models import (
-    ScenarioState, AuditLog, DBUser, DBReport, DBDataSource,
-    DBCollaborationRoom, DBCollaborationMessage, DBProfilePreference
+    ScenarioState, AuditLog, DBUser, DBUserAuth, DBReport, DBDataSource,
+    DBCollaborationRoom, DBCollaborationMessage, DBProfilePreference, HelpTicket
 )
+from app.routers.auth import hash_password
 from datetime import datetime, timezone
 import uuid
 
@@ -45,8 +46,42 @@ def seed():
         else:
             print(f"[OK] Audit logs already seeded ({existing_logs} entries)")
 
-        # Seed initial users
-        if db.query(DBUser).count() == 0:
+        # Seed initial users (including Admin arpitjham1@gmail.com / admin@123)
+        admin_email = "arpitjham1@gmail.com"
+        admin_user = db.query(DBUser).filter(DBUser.email == admin_email).first()
+        if not admin_user:
+            admin_user = DBUser(
+                id="admin_arpit",
+                name="Arpit Jham (System Admin)",
+                email=admin_email,
+                role="National Energy Commander",
+                phone="+91 98100 99999",
+                designation="Platform Administrator & Commander",
+                department="NEMC Command HQ",
+                clearance_level="LEVEL-5 COSMIC TOP SECRET",
+                status="ACTIVE",
+                avatar="AJ",
+                joined_at=datetime.now(timezone.utc),
+            )
+            db.add(admin_user)
+            db.commit()
+
+            admin_auth = DBUserAuth(
+                user_id="admin_arpit",
+                email=admin_email,
+                hashed_password=hash_password("admin@123"),
+            )
+            db.add(admin_auth)
+            db.commit()
+            print("[OK] Admin account arpitjham1@gmail.com seeded")
+        else:
+            admin_auth = db.query(DBUserAuth).filter(DBUserAuth.email == admin_email).first()
+            if admin_auth:
+                admin_auth.hashed_password = hash_password("admin@123")
+                db.commit()
+                print("[OK] Admin password for arpitjham1@gmail.com set to admin@123")
+
+        if db.query(DBUser).count() <= 1:
             users = [
                 DBUser(
                     id="arjun_mehta", name="Arjun Mehta",
@@ -68,76 +103,32 @@ def seed():
                     clearance_level="LEVEL-3 CONFIDENTIAL",
                     status="ACTIVE", avatar="SS"
                 ),
-                DBUser(
-                    id="vikram_singh", name="Vikram Singh",
-                    email="vikram.singh@nemc.gov.in",
-                    role="SPR Administrator",
-                    phone="+91 98300 00003",
-                    designation="SPR Director",
-                    department="Strategic Petroleum Reserve",
-                    clearance_level="LEVEL-4 SECRET",
-                    status="ACTIVE", avatar="VS"
-                ),
             ]
             for u in users:
                 db.add(u)
             db.commit()
-            print("[OK] Users seeded")
+            print("[OK] Standard users seeded")
 
-        # Seed initial reports
-        if db.query(DBReport).count() == 0:
-            reports = [
-                DBReport(id="REP-001", title="Q2 National Energy Security Overview", format="PDF", generated_by="UrjaNetra AI", size="2.4 MB"),
-                DBReport(id="REP-002", title="Hormuz Crisis Response Simulation Report", format="PDF", generated_by="Arjun Mehta", size="1.8 MB"),
-                DBReport(id="REP-003", title="SPR Allocation Advisory", format="CSV", generated_by="UrjaNetra AI", size="420 KB"),
+        # Seed initial help tickets if empty
+        if db.query(HelpTicket).count() == 0:
+            sample_tickets = [
+                HelpTicket(
+                    user_email="arjun.mehta@nemc.gov.in",
+                    subject="Request for Strategic Petroleum Reserve Capacity Expansion",
+                    message="We need assistance verifying the Visakhapatnam SPR drawdown rates under high severity scenarios.",
+                    status="OPEN",
+                ),
+                HelpTicket(
+                    user_email="sneha.sharma@nemc.gov.in",
+                    subject="Sanction Compliance Verification Query for West Africa Tankers",
+                    message="Could the admin confirm if OFAC sanctions validation checks vessel IMO numbers automatically?",
+                    status="OPEN",
+                ),
             ]
-            for r in reports:
-                db.add(r)
+            for t in sample_tickets:
+                db.add(t)
             db.commit()
-            print("[OK] Reports seeded")
-
-        # Seed initial data sources
-        if db.query(DBDataSource).count() == 0:
-            sources = [
-                DBDataSource(id="DS-001", name="IOCL Telemetry Feed", type="API Feed", connection_status="CONNECTED", last_sync_time="Just now", sync_frequency="REAL-TIME", records_count=184000),
-                DBDataSource(id="DS-002", name="AIS Ship Tracker (Indian Ocean)", type="Live Stream", connection_status="CONNECTED", last_sync_time="2 mins ago", sync_frequency="REAL-TIME", records_count=450),
-                DBDataSource(id="DS-003", name="OPEC Supply Tracker", type="Database", connection_status="CONNECTED", last_sync_time="1 hour ago", sync_frequency="HOURLY", records_count=1200),
-                DBDataSource(id="DS-004", name="S&P Platts Crude Indices", type="FTP Sync", connection_status="CONNECTED", last_sync_time="12 hours ago", sync_frequency="DAILY", records_count=35400),
-            ]
-            for s in sources:
-                db.add(s)
-            db.commit()
-            print("[OK] Data sources seeded")
-
-        # Seed initial collaboration rooms
-        if db.query(DBCollaborationRoom).count() == 0:
-            rooms = [
-                DBCollaborationRoom(id="room-crisis", name="Crisis Response Room", description="Active coordination room for national energy supply gaps."),
-                DBCollaborationRoom(id="room-procurement", name="Procurement & Logistics Coordination", description="Negotiating alternative crude cargo options."),
-            ]
-            for rm in rooms:
-                db.add(rm)
-            db.commit()
-            print("[OK] Collaboration rooms seeded")
-
-        # Seed initial collaboration messages
-        if db.query(DBCollaborationMessage).count() == 0:
-            messages = [
-                DBCollaborationMessage(room_id="room-crisis", sender="System Bot", sender_role="AI Assistant", message="Alert: Red Team simulation completed. High assumption vulnerability flagged in Hormuz route.", timestamp="08:45 AM", avatar="AI"),
-                DBCollaborationMessage(room_id="room-crisis", sender="Arjun Mehta", sender_role="Commander", message="Noted. Advise on alternate routes via West Africa and US spot crude availability.", timestamp="08:47 AM", avatar="AM"),
-                DBCollaborationMessage(room_id="room-crisis", sender="Sneha Sharma", sender_role="Resilience Analyst", message="Checking refinery compatibility parameters for Bonny Light. Looks promising.", timestamp="08:52 AM", avatar="SS"),
-            ]
-            for msg in messages:
-                db.add(msg)
-            db.commit()
-            print("[OK] Collaboration messages seeded")
-
-        # Seed initial profile preference
-        if db.query(DBProfilePreference).count() == 0:
-            pref = DBProfilePreference(id=1, user_id="arjun_mehta", theme="dark", notifications_enabled=True, high_contrast=False, refresh_interval_seconds=30)
-            db.add(pref)
-            db.commit()
-            print("[OK] Profile preferences seeded")
+            print("[OK] Sample help tickets seeded")
 
         print("[READY] Seed complete. UrjaNetra AI backend is ready.")
     finally:

@@ -6,7 +6,7 @@ import {
   Factory, Database, Shield, Target, FileText, Bell, BookOpen,
   ClipboardList, Users, Settings, MessageSquare, HelpCircle, Clock,
   Users2, Layers, Brain, User, ChevronDown, ChevronRight, Activity,
-  Globe, Command, LogOut, Home, ChevronsLeft, ChevronsRight, Zap, PlayCircle,
+  Globe, Command, LogOut, Home, ChevronsLeft, ChevronsRight, Zap, PlayCircle, ShieldCheck
 } from 'lucide-react';
 import Logo from '../ui/Logo.jsx';
 import { useScenario } from '../../context/ScenarioContext.jsx';
@@ -46,6 +46,7 @@ const navSections = [
   {
     label: 'Management',
     items: [
+      { path: '/admin', label: 'Admin Portal', icon: ShieldCheck },
       { path: '/notifications', label: 'Notifications', icon: Bell, badge: 3 },
       { path: '/reports', label: 'Reports Library', icon: BookOpen },
       { path: '/audit-logs', label: 'Audit Logs', icon: ClipboardList },
