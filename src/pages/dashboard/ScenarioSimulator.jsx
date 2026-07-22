@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Play, BarChart2, CheckCircle, Bot, Loader, AlertTriangle, Zap, RefreshCw } from 'lucide-react';
+import { Play, BarChart2, CheckCircle, Bot, Loader, AlertTriangle, Zap, RefreshCw, Sliders, Calendar } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import DashboardLayout from '../../components/layout/DashboardLayout.jsx';
 import GlassCard from '../../components/ui/GlassCard.jsx';
@@ -14,6 +14,9 @@ export default function ScenarioSimulator() {
   const { activeScenario, scenarios, backendOnline, activateScenario, refreshState } = useScenario();
 
   const [selected, setSelected] = useState(() => activeScenario?.id || 'hormuz_closure');
+  const [severityMultiplier, setSeverityMultiplier] = useState(1.0);
+  const [durationDays, setDurationDays] = useState(30);
+
   const [running, setRunning] = useState(false);
   const [activating, setActivating] = useState(false);
   const [simulationCache, setSimulationCache] = useState(null);
@@ -32,26 +35,32 @@ export default function ScenarioSimulator() {
     is_active: activeScenario?.id === s.id,
   }));
 
-  // Run simulation for selected scenario
-  const executeSimulation = useCallback(async (scenarioId, isManualRun = false) => {
+  // Run / Recalculate simulation for selected scenario
+  const executeSimulation = useCallback(async (scenarioId, isManualRun = false, mult = severityMultiplier, days = durationDays) => {
     const targetId = scenarioId || selected;
     setRunning(true);
     setSimulationError(null);
 
     try {
-      // 1. Fetch simulation response
-      const res = await runSimulation({ scenario_id: targetId, duration_days: 30 });
+      // 1. Fetch simulation response from backend with multiplier and duration
+      const res = await runSimulation({
+        scenario_id: targetId,
+        duration_days: days,
+        severity_multiplier: mult,
+      });
       
-      // 2. Fetch economic impact for this scenario
+      // 2. Fetch economic impact for this scenario with recalculate flag
       let econData = null;
       try {
-        econData = await fetchEconomicImpact({ scenario_id: targetId });
+        econData = await fetchEconomicImpact({ scenario_id: targetId, recalculate: true });
       } catch (econErr) {
         console.warn("Economic impact fetch warning:", econErr);
       }
 
       const cacheResult = {
         scenario_id: targetId,
+        severity_multiplier: mult,
+        duration_days: days,
         summary: res.summary,
         daily_projection: res.daily_projection,
         recommended_action: res.recommended_action,
@@ -64,16 +73,16 @@ export default function ScenarioSimulator() {
 
       if (isManualRun) {
         const sName = scenarios.find(s => s.id === targetId)?.name || targetId;
-        addToast(`Simulation updated for ${sName}`, 'success');
+        addToast(`✓ Recalculated ${sName} (${mult}x severity factor, ${days} days)`, 'success');
       }
     } catch (err) {
       console.error('Simulation error:', err);
       setSimulationError(err.message || 'Simulation execution failed');
-      if (isManualRun) addToast('Simulation failed to run', 'error');
+      if (isManualRun) addToast('Recalculation failed to run', 'error');
     } finally {
       setRunning(false);
     }
-  }, [selected, scenarios, addToast]);
+  }, [selected, scenarios, severityMultiplier, durationDays, addToast]);
 
   // Trigger simulation whenever selected scenario changes
   useEffect(() => {
@@ -114,30 +123,30 @@ export default function ScenarioSimulator() {
   // Dynamic KPI Metric Card Extraction from Backend Simulation
   const result = simulationCache?.summary
     ? {
-        supplyLoss: `${simulationCache.summary.total_supply_gap_mbbl || 0}M bbl`,
+        supplyLoss: `${(simulationCache.summary.total_supply_gap_mbbl || 0).toFixed(1)}M bbl`,
         priceSurge: `+$${Math.round((simulationCache.summary.peak_brent || 88) - (selectedObj?.brent_baseline_usd || 88))}/bbl`,
         gdpImpact: (() => {
-          const v = simulationCache.econ?.headline?.gdp_growth_drag_pp ??
-                    simulationCache.econ?.metrics?.gdp?.value ??
-                    selectedObj?.economic?.gdp_impact_pct;
-          if (v === undefined || v === null) return '-0.3%';
-          const num = Math.abs(parseFloat(v));
-          return `-${num.toFixed(2)}%`;
+          const raw = simulationCache.econ?.headline?.gdp_growth_drag_pp ??
+                      simulationCache.econ?.metrics?.gdp?.value ??
+                      selectedObj?.economic?.gdp_impact_pct;
+          if (raw === undefined || raw === null) return '-0.30%';
+          const val = Math.abs(parseFloat(raw)) * (simulationCache.severity_multiplier || 1.0);
+          return `-${val.toFixed(2)}%`;
         })(),
         inflationImpact: (() => {
-          const v = simulationCache.econ?.headline?.inflation_impact_pp ??
-                    simulationCache.econ?.metrics?.inflation?.value ??
-                    selectedObj?.economic?.inflation_pct;
-          if (v === undefined || v === null) return '+1.2%';
-          const num = Math.abs(parseFloat(v));
-          return `+${num.toFixed(2)}%`;
+          const raw = simulationCache.econ?.headline?.inflation_impact_pp ??
+                      simulationCache.econ?.metrics?.inflation?.value ??
+                      selectedObj?.economic?.inflation_pct;
+          if (raw === undefined || raw === null) return '+1.20%';
+          const val = Math.abs(parseFloat(raw)) * (simulationCache.severity_multiplier || 1.0);
+          return `+${val.toFixed(2)}%`;
         })(),
-        duration: `${selectedObj?.duration_days || 30} days`,
+        duration: `${simulationCache.duration_days || durationDays} days`,
         severity: simulationCache.summary.severity || selectedObj?.severity || 'HIGH',
       }
     : null;
 
-  // Dynamic Chart Data mapping for 30-day timeline graph
+  // Dynamic Chart Data mapping for timeline graph
   const displayChart = simulationCache?.daily_projection
     ? simulationCache.daily_projection.map((d, i) => ({ 
         t: `Day ${d.day || i + 1}`, 
@@ -173,8 +182,8 @@ export default function ScenarioSimulator() {
           </button>
           <button className="btn btn-primary btn-sm" onClick={() => executeSimulation(selected, true)} disabled={running}>
             {running
-              ? <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Loader size={13} style={{ animation: 'spin 0.8s linear infinite' }} /> Simulating...</span>
-              : <><Play size={13} /> Run Simulation</>}
+              ? <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Loader size={13} style={{ animation: 'spin 0.8s linear infinite' }} /> Recalculating...</span>
+              : <><RefreshCw size={13} /> Recalculate</>}
           </button>
         </>}
       />
@@ -286,11 +295,11 @@ export default function ScenarioSimulator() {
                 </div>
                 <div style={{ background: 'rgba(255,255,255,0.03)', padding: 6, borderRadius: 6 }}>
                   <span style={{ color: 'var(--text-dim)' }}>Price Spike:</span>
-                  <strong style={{ color: '#f59e0b', marginLeft: 4 }}>+${(selectedObj.crude_price_spike_usd || (selectedObj.brent_shock_usd ? selectedObj.brent_shock_usd - (selectedObj.brent_baseline_usd || 88) : 10)).toFixed(1)}/bbl</strong>
+                  <strong style={{ color: '#f59e0b', marginLeft: 4 }}>+${((selectedObj.crude_price_spike_usd || (selectedObj.brent_shock_usd ? selectedObj.brent_shock_usd - (selectedObj.brent_baseline_usd || 88) : 10)) * severityMultiplier).toFixed(1)}/bbl</strong>
                 </div>
                 <div style={{ background: 'rgba(255,255,255,0.03)', padding: 6, borderRadius: 6 }}>
                   <span style={{ color: 'var(--text-dim)' }}>Import Gap:</span>
-                  <strong style={{ color: '#ef4444', marginLeft: 4 }}>{selectedObj.india_import_gap_mbbl_day || selectedObj.parameters?.supply_shortfall_mbbl || 1.8} M bbl/d</strong>
+                  <strong style={{ color: '#ef4444', marginLeft: 4 }}>{(selectedObj.india_import_gap_mbbl_day || selectedObj.parameters?.supply_shortfall_mbbl || 1.8)} M bbl/d</strong>
                 </div>
                 <div style={{ background: 'rgba(255,255,255,0.03)', padding: 6, borderRadius: 6 }}>
                   <span style={{ color: 'var(--text-dim)' }}>Risk Score:</span>
@@ -304,35 +313,88 @@ export default function ScenarioSimulator() {
         {/* Right Column: Simulation Output & Dynamic Graph */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           
-          {/* Header Banner for Selected Scenario */}
-          <div style={{
-            background: 'rgba(8,18,38,0.85)', border: '1px solid rgba(0,229,255,0.2)',
-            borderRadius: 12, padding: '12px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{
-                width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,229,255,0.1)',
-                border: '1px solid rgba(0,229,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#00e5ff'
-              }}>
-                <BarChart2 size={18} />
-              </div>
-              <div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#e2e8f0' }}>
-                  {selectedObj?.name || 'Simulation Results'}
+          {/* Simulation Controls & Recalculate Toolbar */}
+          <GlassCard style={{ background: 'rgba(8,18,38,0.95)', border: '1px solid rgba(0,229,255,0.25)', padding: '14px 18px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 14 }}>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{
+                  width: 38, height: 38, borderRadius: '50%', background: 'rgba(0,229,255,0.1)',
+                  border: '1px solid rgba(0,229,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#00e5ff'
+                }}>
+                  <Sliders size={18} />
                 </div>
-                <div style={{ fontSize: 11, color: 'rgba(148,163,184,0.6)', marginTop: 1 }}>
-                  30-Day Projections · {result && simulationCache?.timestamp ? `Updated ${simulationCache.timestamp}` : 'Ready'}
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0' }}>
+                    Recalculation Controls — {selectedObj?.name}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'rgba(148,163,184,0.6)', marginTop: 2 }}>
+                    Adjust shock severity or timeline horizon & click Recalculate
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {running && <span style={{ fontSize: 11, color: '#00e5ff', display: 'flex', alignItems: 'center', gap: 6 }}><Loader size={12} style={{ animation: 'spin 0.8s linear infinite' }} /> Computing...</span>}
-              <button className="btn btn-secondary btn-sm" onClick={() => executeSimulation(selected, true)} disabled={running}>
-                <RefreshCw size={12} /> Recalculate
-              </button>
+              {/* Controls */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+                
+                {/* Severity Multiplier Select */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>Severity Factor:</span>
+                  <select
+                    value={severityMultiplier}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      setSeverityMultiplier(val);
+                      executeSimulation(selected, true, val, durationDays);
+                    }}
+                    style={{
+                      background: 'rgba(0,229,255,0.06)', border: '1px solid rgba(0,229,255,0.25)',
+                      borderRadius: 6, color: '#00e5ff', fontSize: 12, fontWeight: 700, padding: '5px 10px',
+                      cursor: 'pointer', outline: 'none'
+                    }}
+                  >
+                    <option value={1.0} style={{ background: '#0a1628' }}>1.0x (Standard)</option>
+                    <option value={1.3} style={{ background: '#0a1628' }}>1.3x (Elevated)</option>
+                    <option value={1.8} style={{ background: '#0a1628' }}>1.8x (Catastrophic)</option>
+                  </select>
+                </div>
+
+                {/* Duration Select */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>Horizon:</span>
+                  <select
+                    value={durationDays}
+                    onChange={(e) => {
+                      const days = parseInt(e.target.value, 10);
+                      setDurationDays(days);
+                      executeSimulation(selected, true, severityMultiplier, days);
+                    }}
+                    style={{
+                      background: 'rgba(0,229,255,0.06)', border: '1px solid rgba(0,229,255,0.25)',
+                      borderRadius: 6, color: '#00e5ff', fontSize: 12, fontWeight: 700, padding: '5px 10px',
+                      cursor: 'pointer', outline: 'none'
+                    }}
+                  >
+                    <option value={30} style={{ background: '#0a1628' }}>30 Days</option>
+                    <option value={60} style={{ background: '#0a1628' }}>60 Days</option>
+                    <option value={90} style={{ background: '#0a1628' }}>90 Days</option>
+                  </select>
+                </div>
+
+                {/* Recalculate Button */}
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => executeSimulation(selected, true, severityMultiplier, durationDays)}
+                  disabled={running}
+                  style={{ gap: 6 }}
+                >
+                  <RefreshCw size={13} style={{ animation: running ? 'spin 0.8s linear infinite' : 'none' }} />
+                  {running ? 'Recalculating...' : 'Recalculate Projections'}
+                </button>
+              </div>
+
             </div>
-          </div>
+          </GlassCard>
 
           {/* Metric KPI Cards */}
           {result && (
@@ -366,7 +428,7 @@ export default function ScenarioSimulator() {
                   label: 'Duration', 
                   val: result.duration, 
                   color: '#1d8cff',
-                  desc: `Simulation phase: 30 days. Supply gap closes after day 22 as alternate maritime cargoes arrive.`
+                  desc: `Simulation phase: ${result.duration}. Supply gap closes after day 22 as alternate maritime cargoes arrive.`
                 },
                 { 
                   label: 'Severity Level', 
@@ -383,16 +445,16 @@ export default function ScenarioSimulator() {
             </div>
           )}
 
-          {/* 30-Day Projections Chart */}
+          {/* Timeline Chart */}
           {displayChart.length > 0 && (
             <GlassCard>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                 <div>
                   <h3 style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0' }}>
-                    30-Day Crude Price ($) & Strategic Reserve (%) Trajectory
+                    {durationDays}-Day Crude Price ($) & Strategic Reserve (%) Trajectory
                   </h3>
                   <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
-                    Dynamic response curve for <strong>{selectedObj?.name}</strong>
+                    Dynamic response curve for <strong>{selectedObj?.name}</strong> ({severityMultiplier}x shock multiplier)
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 12, fontSize: 11 }}>
@@ -414,7 +476,7 @@ export default function ScenarioSimulator() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(90,130,255,0.08)" />
-                  <XAxis dataKey="t" tick={{ fill: '#64748b', fontSize: 10 }} interval={3} />
+                  <XAxis dataKey="t" tick={{ fill: '#64748b', fontSize: 10 }} interval={Math.max(1, Math.floor(displayChart.length / 8))} />
                   <YAxis yAxisId="left" orientation="left" tick={{ fill: '#ef4444', fontSize: 10 }} domain={['dataMin - 5', 'dataMax + 5']} />
                   <YAxis yAxisId="right" orientation="right" tick={{ fill: '#00e5ff', fontSize: 10 }} domain={[0, 100]} />
                   <Tooltip contentStyle={{ background: 'rgba(8,18,35,0.96)', border: '1px solid rgba(90,130,255,0.3)', borderRadius: 8, fontSize: 12 }} />
