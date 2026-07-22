@@ -31,6 +31,8 @@ import CrisisMode from './pages/dashboard/CrisisMode.jsx';
 import DemoMode from './pages/dashboard/DemoMode.jsx';
 import ThresholdsAlerts from './pages/dashboard/ThresholdsAlerts.jsx';
 
+import { CallProvider } from './context/CallContext.jsx';
+
 export default function App() {
   React.useEffect(() => {
     const isDark = localStorage.getItem('urja_dark_mode') !== 'false';
@@ -39,9 +41,10 @@ export default function App() {
 
   return (
     <ToastProvider>
-      <BrowserRouter>
-        <PipelineProvider>
-          <ScenarioProvider>
+      <CallProvider>
+        <BrowserRouter>
+          <PipelineProvider>
+            <ScenarioProvider>
             <Routes>
               {/* Default Entry Point: Command Center */}
               <Route path="/" element={<Navigate to="/command-center" replace />} />
@@ -84,6 +87,7 @@ export default function App() {
           </ScenarioProvider>
         </PipelineProvider>
       </BrowserRouter>
+      </CallProvider>
     </ToastProvider>
   );
 }

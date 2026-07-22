@@ -6,6 +6,7 @@ import PageHeader from '../../components/ui/PageHeader.jsx';
 import { fetchCollabRooms, fetchCollabMessages, addCollabMessage, getWebSocketUrl } from '../../services/api.js';
 import { useToast } from '../../components/ui/Toast.jsx';
 import { useScenario } from '../../context/ScenarioContext.jsx';
+import { useCall } from '../../context/CallContext.jsx';
 
 const DEFAULT_ROOMS = [
   { id: 'war-room', name: 'National Crisis War Room', description: 'Strategic escalation and joint operational command', type: 'EMERGENCY' },
@@ -25,6 +26,7 @@ const typeColor = { EMERGENCY: '#ef4444', OPERATIONS: '#f59e0b', INTELLIGENCE: '
 export default function CollaborationRoom() {
   const { backendOnline } = useScenario();
   const { addToast } = useToast();
+  const { startCall } = useCall();
 
   const [roomsList, setRoomsList] = useState(DEFAULT_ROOMS);
   const [activeRoom, setActiveRoom] = useState(DEFAULT_ROOMS[0]);
@@ -246,8 +248,14 @@ export default function CollaborationRoom() {
               {wsConnecting ? <RefreshCw size={10} className="animate-spin" /> : wsConnected ? <Wifi size={10} /> : <WifiOff size={10} />}
               {wsConnecting ? 'CONNECTING...' : wsConnected ? 'WS LIVE' : 'WS OFFLINE'}
             </div>
-            <button className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }} onClick={() => addToast('Video conference session initialized', 'success')}><Video size={13} />Video Call</button>
-            <button className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }} onClick={() => addToast('Secure audio link active', 'success')}><Phone size={13} />Voice</button>
+            <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, background: 'rgba(139,92,246,0.2)', border: '1px solid rgba(139,92,246,0.4)', color: '#a78bfa' }}
+              onClick={() => startCall({ type: 'VIDEO', roomId: activeRoom?.id || 'war-room', title: `${activeRoom?.name || 'War Room'} - Live Video Conference` })}>
+              <Video size={13} />Video Call
+            </button>
+            <button className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}
+              onClick={() => startCall({ type: 'AUDIO', roomId: activeRoom?.id || 'war-room', title: `${activeRoom?.name || 'War Room'} - Secure Audio Briefing` })}>
+              <Phone size={13} />Voice Call
+            </button>
           </div>
         }
       />
@@ -350,10 +358,17 @@ export default function CollaborationRoom() {
                   <div style={{ width: 30, height: 30, borderRadius: '50%', background: m.isAI ? 'linear-gradient(135deg, #1d8cff, #8b5cf6)' : 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: m.isAI ? '#fff' : 'var(--text-secondary)' }}>{m.avatar}</div>
                   <div style={{ position: 'absolute', bottom: 0, right: 0, width: 7, height: 7, borderRadius: '50%', background: m.online ? '#22c55e' : 'var(--text-dim)', border: '1.5px solid var(--bg-panel)' }} />
                 </div>
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)' }}>{m.name}</div>
+                <div style={{ flex: 1, overflow: 'hidden' }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.name}</div>
                   <div style={{ fontSize: 9, color: 'var(--text-dim)' }}>{m.role}</div>
                 </div>
+                {m.name !== 'Arjun Mehta' && (
+                  <button onClick={() => startCall({ type: 'AUDIO', contact: m, roomId: activeRoom?.id || 'war-room' })}
+                    style={{ background: 'rgba(29, 140, 255, 0.1)', border: '1px solid rgba(29, 140, 255, 0.25)', borderRadius: 6, padding: '3px 6px', color: '#1d8cff', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                    title={`Call ${m.name}`}>
+                    <Phone size={10} />
+                  </button>
+                )}
               </div>
             ))}
           </div>

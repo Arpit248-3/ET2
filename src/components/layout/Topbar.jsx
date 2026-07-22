@@ -49,7 +49,7 @@ export default function Topbar({ crisisMode = false }) {
             style={{ paddingLeft: 34, fontSize: 12.5, height: 36, borderRadius: 8 }}
             onKeyDown={e => {
               if (e.key === 'Enter' && searchVal.trim()) {
-                navigate('/ai-copilot');
+                navigate('/ai-copilot', { state: { initialQuery: searchVal.trim() } });
                 setSearchVal('');
               }
             }}

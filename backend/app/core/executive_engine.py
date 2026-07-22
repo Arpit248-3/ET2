@@ -5,7 +5,7 @@ Computes overall pipeline confidence across all preceding engine confidences.
 Does NOT generate natural language reports (reserved for future Phase 6 Executive Report AI Agent).
 """
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any, List
 
 from app.pipeline.models import (
@@ -89,9 +89,17 @@ def execute(state: Any, context: Any) -> Any:
         shock = scenario.get("crude_price_spike_usd", 0)
         brent = round(scenario.get("brent_baseline_usd", 88.0) + shock * fraction, 1)
 
-    # Incident feed
+    # Incident feed with dynamic timestamps
     raw_incidents = INCIDENT_FEEDS.get(scenario_id, DEFAULT_INCIDENTS)
-    incident_feed = [ExecutiveIncidentItem(**i) for i in raw_incidents]
+    now_dt = datetime.now()
+    n_inc = len(raw_incidents)
+    incident_feed = []
+    for idx, item in enumerate(raw_incidents):
+        item_copy = item.copy()
+        # Calculate dynamic time relative to current session execution time (e.g. 15, 30, 45 mins ago)
+        past_time = now_dt - timedelta(minutes=(n_inc - 1 - idx) * 15)
+        item_copy["time"] = past_time.strftime("%H:%M")
+        incident_feed.append(ExecutiveIncidentItem(**item_copy))
 
     # Demo state
     scenario_name = scenario.get("name", "No Active Scenario") if scenario else "No Active Scenario"

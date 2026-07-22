@@ -21,7 +21,7 @@ from app.routers import (
     economic, procurement, spr, compliance,
     redteam, brief, decisions, timeline,
     notifications, audit, settings, extra_pages,
-    pipeline, copilot, collaboration, crisis, help, auth
+    pipeline, copilot, collaboration, crisis, help, auth, events
 )
 
 
@@ -58,7 +58,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ─── Health & Observability Probes ──────────────────────────────────────────────
+# ─── Root & Observability Probes ────────────────────────────────────────────────
+@app.get("/")
+def root_index():
+    return {
+        "status": "online",
+        "service": "UrjaNetra AI — National Energy Resilience Command Platform",
+        "version": "1.0.0",
+        "documentation": "http://127.0.0.1:8000/docs",
+        "redoc": "http://127.0.0.1:8000/redoc",
+        "api_base": "http://127.0.0.1:8000/api",
+        "health_check": "http://127.0.0.1:8000/api/health",
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+
+
 @app.get("/api/health")
 def health_check():
     from app.database import SessionLocal
@@ -151,10 +165,9 @@ app.include_router(decisions.router, prefix="/api", tags=["Decisions"])
 app.include_router(timeline.router, prefix="/api", tags=["Timeline"])
 app.include_router(notifications.router, prefix="/api", tags=["Notifications"])
 app.include_router(audit.router, prefix="/api", tags=["Audit"])
-app.include_router(settings.router, prefix="/api", tags=["Settings"])
+app.include_router(copilot.router, prefix="/api", tags=["Copilot"])
 app.include_router(extra_pages.router, prefix="/api", tags=["Extra Pages"])
 app.include_router(pipeline.router, prefix="/api", tags=["Pipeline"])
-app.include_router(copilot.router, prefix="/api", tags=["Copilot"])
 # Collaboration: WebSocket at root level (no prefix needed — ws:// connects to /ws/*)
 # REST API routes under /api
 app.include_router(collaboration.ws_router, tags=["Collaboration WS"])
@@ -162,6 +175,7 @@ app.include_router(collaboration.router, prefix="/api", tags=["Collaboration"])
 app.include_router(crisis.router, prefix="/api", tags=["Crisis"])
 app.include_router(help.router, prefix="/api", tags=["Help Center"])
 app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
+app.include_router(events.router, prefix="/api", tags=["Events"])
 
 
 

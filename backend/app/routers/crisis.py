@@ -42,10 +42,12 @@ def get_crisis_status(db: Session = Depends(get_db)):
     state = db.query(ScenarioState).filter(ScenarioState.id == 1).first()
     is_active = state.demo_running if state else False
     active_scenario = state.active_scenario_id if state else "hormuz_closure"
+    activated_at_iso = state.activated_at.isoformat() if state and state.activated_at else None
     return {
         "crisis_active": is_active,
         "active_scenario": active_scenario,
         "threat_level": "DEFCON-1 ESCALATED" if is_active else "ELEVATED MONITORING",
+        "activated_at": activated_at_iso,
         "updated_at": datetime.now(timezone.utc).isoformat()
     }
 
@@ -62,8 +64,13 @@ def activate_crisis_mode(payload: dict = {}, db: Session = Depends(get_db)):
         target_state = not state.demo_running
 
     state.demo_running = target_state
-    if target_state and not state.active_scenario_id:
-        state.active_scenario_id = "hormuz_closure"
+    if target_state:
+        if not state.active_scenario_id:
+            state.active_scenario_id = "hormuz_closure"
+        if not state.activated_at:
+            state.activated_at = datetime.now(timezone.utc)
+    else:
+        state.activated_at = None
     
     db.commit()
 
@@ -84,6 +91,7 @@ def activate_crisis_mode(payload: dict = {}, db: Session = Depends(get_db)):
     return {
         "success": True,
         "crisis_active": target_state,
+        "activated_at": state.activated_at.isoformat() if state.activated_at else None,
         "message": f"Global Crisis Escalation Mode {status_str}.",
         "threat_level": "DEFCON-1 ESCALATED" if target_state else "STANDARD MONITORING",
         "pipeline_updated": updated_pipeline is not None,

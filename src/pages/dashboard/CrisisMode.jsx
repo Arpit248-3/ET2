@@ -1,12 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AlertTriangle, Zap, Phone, Radio, Shield, Activity, X, CheckCircle, Clock, ChevronRight, Loader, Upload, Power } from 'lucide-react';
+import { 
+  AlertTriangle, Zap, Phone, Radio, Shield, Activity, X, CheckCircle, 
+  Clock, ChevronRight, Loader, Upload, Power, Video, Send 
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout.jsx';
 import GlassCard from '../../components/ui/GlassCard.jsx';
 import { useScenario } from '../../context/ScenarioContext.jsx';
-import { recordDecision, fetchCrisisStatus, activateCrisisMode, uploadCrisisManifest } from '../../services/api.js';
+import { recordDecision, fetchCrisisStatus, activateCrisisMode, uploadCrisisManifest, addCollabMessage } from '../../services/api.js';
 import { useToast } from '../../components/ui/Toast.jsx';
 import { usePipeline } from '../../context/PipelineContext.jsx';
+import { useCall } from '../../context/CallContext.jsx';
 
 const mockCrisisAlerts = [
   { id: 'CA-001', title: 'Hormuz Strait – Naval Exercise Active', type: 'GEOPOLITICAL', severity: 'CRITICAL', impact: 'Supply disruption imminent', time: '09:12' },
@@ -23,10 +27,10 @@ const mockResponseActions = [
 ];
 
 const contacts = [
-  { name: 'MoP Secretary', avatar: 'PS', online: true },
-  { name: 'IOC Chairman', avatar: 'RK', online: true },
-  { name: 'PMO Office', avatar: 'PM', online: false },
-  { name: 'HPCL Director', avatar: 'SN', online: true },
+  { name: 'MoP Secretary', role: 'Ministry of Petroleum', avatar: 'PS', online: true },
+  { name: 'IOC Chairman', role: 'Indian Oil Corp Lead', avatar: 'RK', online: true },
+  { name: 'PMO Office', role: 'Prime Minister Office Desk', avatar: 'PM', online: false },
+  { name: 'HPCL Director', role: 'Refinery Operations', avatar: 'SN', online: true },
 ];
 
 const statusColor = { PENDING: '#f59e0b', 'IN PROGRESS': '#1d8cff', DONE: '#22c55e' };
@@ -34,27 +38,52 @@ const statusColor = { PENDING: '#f59e0b', 'IN PROGRESS': '#1d8cff', DONE: '#22c5
 export default function CrisisMode() {
   const { systemState, backendOnline, activeScenario } = useScenario();
   const { refreshPipeline } = usePipeline();
+  const { startCall } = useCall();
+  const { addToast: showToast } = useToast();
+  const navigate = useNavigate();
+
   const [tick, setTick] = useState(0);
-  const [timer, setTimer] = useState({ h: 0, m: 47, s: 22 });
+  const [timer, setTimer] = useState({ h: 0, m: 0, s: 0 });
+  const [activatedAt, setActivatedAt] = useState(null);
   const [actionsList, setActionsList] = useState([]);
+  const [alertsList, setAlertsList] = useState(mockCrisisAlerts);
   const [submittingAction, setSubmittingAction] = useState(null);
   const [crisisActive, setCrisisActive] = useState(false);
   const [crisisActivating, setCrisisActivating] = useState(false);
+  
+  // Manifest Modal State
   const [showManifestModal, setShowManifestModal] = useState(false);
   const [manifestFile, setManifestFile] = useState(null);
   const [manifestNotes, setManifestNotes] = useState('');
   const [manifestUploading, setManifestUploading] = useState(false);
   const [manifestResult, setManifestResult] = useState(null);
   const fileInputRef = useRef(null);
-  const navigate = useNavigate();
-  const { addToast: showToast } = useToast();
+
+  // Quick Action Modal States
+  const [showBroadcastModal, setShowBroadcastModal] = useState(false);
+  const [broadcastTarget, setBroadcastTarget] = useState('WAR_ROOM');
+  const [broadcastMsg, setBroadcastMsg] = useState('⚡ RED ALERT: National energy supply threshold breached. All sector leads initiate emergency drawdown protocol.');
+  const [sendingBroadcast, setSendingBroadcast] = useState(false);
+
+  const [showPmoModal, setShowPmoModal] = useState(false);
+  const [pmoLevel, setPmoLevel] = useState('LEVEL-5');
+  const [pmoNotes, setPmoNotes] = useState('Requesting Level 5 Executive Override for 3.2 MT Strategic Petroleum Reserve emergency release and naval escort for Hormuz tankers.');
+  const [escalatingPmo, setEscalatingPmo] = useState(false);
 
   // Fetch crisis status on mount
   useEffect(() => {
     const loadCrisisStatus = async () => {
       try {
         const data = await fetchCrisisStatus();
-        setCrisisActive(data?.crisis_active || false);
+        const isActive = data?.crisis_active || false;
+        setCrisisActive(isActive);
+        if (isActive && data?.activated_at) {
+          setActivatedAt(new Date(data.activated_at).getTime());
+        } else if (isActive) {
+          setActivatedAt(Date.now());
+        } else {
+          setActivatedAt(null);
+        }
       } catch (err) {
         console.warn('[Crisis] Status fetch failed:', err);
       }
@@ -63,16 +92,25 @@ export default function CrisisMode() {
   }, []);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setTimer(prev => {
-        let { h, m, s } = prev;
-        s++; if (s >= 60) { s = 0; m++; } if (m >= 60) { m = 0; h++; }
-        return { h, m, s };
-      });
+    const updateTimer = () => {
+      if (crisisActive) {
+        const startTime = activatedAt || Date.now();
+        const diffMs = Math.max(0, Date.now() - startTime);
+        const totalSec = Math.floor(diffMs / 1000);
+        const h = Math.floor(totalSec / 3600);
+        const m = Math.floor((totalSec % 3600) / 60);
+        const s = totalSec % 60;
+        setTimer({ h, m, s });
+      } else {
+        setTimer({ h: 0, m: 0, s: 0 });
+      }
       setTick(t => t + 1);
-    }, 1000);
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [crisisActive, activatedAt]);
 
   // Sync actionsList when systemState risk signals change
   useEffect(() => {
@@ -111,9 +149,9 @@ export default function CrisisMode() {
   const riskIndex = systemState?.kpi?.risk_score ?? 82;
   const supplyCover = systemState?.kpi?.spr_coverage ?? 26;
   const crudePrice = systemState?.brent_price ?? 101;
-  const activeAlertsCount = systemState?.kpi?.active_incidents ?? 3;
+  const activeAlertsCount = systemState?.kpi?.active_incidents ?? alertsList.length;
 
-  // Adapt alerts from backend incident feed, fall back to mock
+  // Adapt alerts from backend incident feed, fall back to alertsList state
   const displayAlerts = systemState?.incident_feed && systemState.incident_feed.length > 0
     ? systemState.incident_feed.map(i => ({
         id: `CA-${String(i.id).padStart(3, '0')}`,
@@ -123,7 +161,7 @@ export default function CrisisMode() {
         impact: i.detail,
         time: i.time,
       }))
-    : mockCrisisAlerts;
+    : alertsList;
 
   const handleActionClick = async (action) => {
     if (action.status === 'DONE') return;
@@ -156,20 +194,93 @@ export default function CrisisMode() {
     }
   };
 
-  const handleQuickAction = async (label, color) => {
+  const handleQuickActionClick = (actionLabel) => {
+    if (actionLabel === 'Broadcast Alert to All Users') {
+      setShowBroadcastModal(true);
+    } else if (actionLabel === 'Open War Room Channel') {
+      showToast('Redirecting to National Crisis War Room...', 'info');
+      navigate('/collaboration-room');
+    } else if (actionLabel === 'Escalate to PMO') {
+      setShowPmoModal(true);
+    }
+  };
+
+  const executeBroadcast = async () => {
+    setSendingBroadcast(true);
     try {
       if (backendOnline) {
         await recordDecision({
-          action_type: label,
+          action_type: 'Broadcast Crisis Alert',
           approved_by: 'Commander Arjun Mehta',
           scenario_id: activeScenario?.id || 'baseline',
-          details: { category: 'Quick Crisis Action' }
+          details: { message: broadcastMsg, target: broadcastTarget }
+        });
+
+        await addCollabMessage('war-room', {
+          sender: 'Commander Arjun Mehta',
+          role: 'NEMC Crisis Commander',
+          message: `🚨 BROADCAST ALERT (${broadcastTarget}): ${broadcastMsg}`,
+          type: 'ALERT',
+          avatar: '🚨'
         });
       }
-      showToast(`Crisis command issued: ${label}`, 'success');
+
+      // Prepend to local alerts feed
+      const newAlert = {
+        id: `CA-${String(Date.now()).slice(-4)}`,
+        title: broadcastMsg.slice(0, 45) + '...',
+        type: 'BROADCAST',
+        severity: 'CRITICAL',
+        impact: `Broadcast sent to ${broadcastTarget}`,
+        time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false })
+      };
+      setAlertsList(prev => [newAlert, ...prev]);
+
+      showToast(`⚡ Emergency alert broadcast sent to ${broadcastTarget}!`, 'warning');
+      setShowBroadcastModal(false);
     } catch (err) {
       console.error(err);
-      showToast('Failed to issue crisis command to the backend.', 'error');
+      showToast('Failed to complete broadcast dispatch.', 'error');
+    } finally {
+      setSendingBroadcast(false);
+    }
+  };
+
+  const executePmoEscalation = async () => {
+    setEscalatingPmo(true);
+    try {
+      if (backendOnline) {
+        await recordDecision({
+          action_type: `PMO Escalation (${pmoLevel})`,
+          approved_by: 'Commander Arjun Mehta',
+          scenario_id: activeScenario?.id || 'baseline',
+          details: { pmo_level: pmoLevel, notes: pmoNotes }
+        });
+
+        await addCollabMessage('war-room', {
+          sender: 'NEMC Command',
+          role: 'Executive Escalation Desk',
+          message: `🏛️ PMO ESCALATION DIRECTIVE (${pmoLevel}): ${pmoNotes}`,
+          type: 'ALERT',
+          avatar: '🏛️'
+        });
+      }
+
+      showToast(`🏛️ Escalated to PMO Command — ${pmoLevel} directive recorded. Initiating video call...`, 'warning');
+      setShowPmoModal(false);
+
+      // Automatically launch PMO Video Call
+      startCall({
+        type: 'VIDEO',
+        contact: { name: 'PMO Office', role: 'Prime Minister Office Desk', avatar: 'PM' },
+        title: 'PMO Emergency Escalation Conference',
+        roomId: 'war-room'
+      });
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to record PMO escalation.', 'error');
+    } finally {
+      setEscalatingPmo(false);
     }
   };
 
@@ -177,12 +288,19 @@ export default function CrisisMode() {
     setCrisisActivating(true);
     try {
       const result = await activateCrisisMode(!crisisActive);
-      setCrisisActive(result?.crisis_active ?? !crisisActive);
+      const isNowActive = result?.crisis_active ?? !crisisActive;
+      setCrisisActive(isNowActive);
+      if (isNowActive) {
+        const timestamp = result?.activated_at ? new Date(result.activated_at).getTime() : Date.now();
+        setActivatedAt(timestamp);
+      } else {
+        setActivatedAt(null);
+      }
       showToast(
-        result?.crisis_active
+        isNowActive
           ? '⚡ CRISIS MODE ACTIVATED — Dashboard risk engines recalculated.'
           : 'Crisis mode deactivated. Returning to standard operations.',
-        result?.crisis_active ? 'warning' : 'success'
+        isNowActive ? 'warning' : 'success'
       );
       await refreshPipeline();
     } catch (err) {
@@ -286,6 +404,87 @@ export default function CrisisMode() {
         </div>
       )}
 
+      {/* Broadcast Alert Modal */}
+      {showBroadcastModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <GlassCard className="card" style={{ width: 500, padding: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#ef4444', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Radio size={16} color="#ef4444" /> Broadcast Crisis Alert to All Stations
+              </div>
+              <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)' }} onClick={() => setShowBroadcastModal(false)}><X size={16} /></button>
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>Target Channel / Audience</label>
+              <select value={broadcastTarget} onChange={e => setBroadcastTarget(e.target.value)}
+                style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-soft)', borderRadius: 8, padding: '9px 12px', fontSize: 12, color: 'var(--text-primary)', outline: 'none' }}>
+                <option value="WAR_ROOM">National Crisis War Room (High Priority)</option>
+                <option value="ALL">All Dashboard Users & Executive Terminals</option>
+                <option value="REFINERIES">Refinery & Port Operators Tactical Feed</option>
+              </select>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>Emergency Broadcast Message</label>
+              <textarea value={broadcastMsg} onChange={e => setBroadcastMsg(e.target.value)} rows={3}
+                style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-soft)', borderRadius: 8, padding: '9px 12px', fontSize: 12, color: 'var(--text-primary)', outline: 'none', resize: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button className="btn btn-secondary" style={{ fontSize: 12 }} onClick={() => setShowBroadcastModal(false)}>Cancel</button>
+              <button className="btn btn-primary" style={{ background: '#ef4444', borderColor: '#ef4444', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}
+                disabled={sendingBroadcast} onClick={executeBroadcast}>
+                {sendingBroadcast ? <Loader size={13} className="animate-spin" /> : <Radio size={13} />}
+                {sendingBroadcast ? 'Broadcasting...' : 'Send Emergency Broadcast'}
+              </button>
+            </div>
+          </GlassCard>
+        </div>
+      )}
+
+      {/* PMO Escalation Modal */}
+      {showPmoModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <GlassCard className="card" style={{ width: 520, padding: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Zap size={16} color="#f59e0b" /> Prime Minister's Office (PMO) Escalation
+              </div>
+              <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)' }} onClick={() => setShowPmoModal(false)}><X size={16} /></button>
+            </div>
+
+            <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: 11, color: '#f59e0b', lineHeight: 1.5 }}>
+              <strong>Level 5 National Security Escalation:</strong> Issues executive brief directly to Cabinet Committee on Security & PMO Office. Initiates direct encrypted video conference with PMO Desk.
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>Escalation Level</label>
+              <select value={pmoLevel} onChange={e => setPmoLevel(e.target.value)}
+                style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-soft)', borderRadius: 8, padding: '9px 12px', fontSize: 12, color: 'var(--text-primary)', outline: 'none' }}>
+                <option value="LEVEL-5">Level 5: Executive Command (Eyes Only PMO & Cabinet)</option>
+                <option value="LEVEL-4">Level 4: Ministry Level Joint Action Group</option>
+              </select>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>Executive Rationale & Action Plan</label>
+              <textarea value={pmoNotes} onChange={e => setPmoNotes(e.target.value)} rows={3}
+                style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-soft)', borderRadius: 8, padding: '9px 12px', fontSize: 12, color: 'var(--text-primary)', outline: 'none', resize: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button className="btn btn-secondary" style={{ fontSize: 12 }} onClick={() => setShowPmoModal(false)}>Cancel</button>
+              <button className="btn btn-primary" style={{ background: '#f59e0b', borderColor: '#f59e0b', color: '#000', fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}
+                disabled={escalatingPmo} onClick={executePmoEscalation}>
+                {escalatingPmo ? <Loader size={13} className="animate-spin" /> : <Video size={13} />}
+                {escalatingPmo ? 'Escalating...' : 'Escalate & Start PMO Video Call'}
+              </button>
+            </div>
+          </GlassCard>
+        </div>
+      )}
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14, marginBottom: 14 }}>
         {/* KPIs */}
         <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
@@ -375,7 +574,7 @@ export default function CrisisMode() {
           </div>
         </GlassCard>
 
-        {/* Emergency Contacts */}
+        {/* Emergency Contacts & Quick Actions */}
         <GlassCard className="card" style={{ padding: '16px 18px' }}>
           <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
             <Phone size={14} color="#1d8cff" />Emergency Contacts
@@ -389,15 +588,26 @@ export default function CrisisMode() {
                 </div>
                 <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)' }}>{c.name}</span>
               </div>
-              <button 
-                onClick={() => showToast(`Dialing ${c.name} via encrypted secure line...`, 'info')}
-                style={{ background: 'rgba(29,140,255,0.1)', border: '1px solid rgba(29,140,255,0.2)', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', color: '#1d8cff', fontSize: 10 }}
-              >
-                Call
-              </button>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button 
+                  onClick={() => startCall({ type: 'AUDIO', contact: c, roomId: 'war-room' })}
+                  style={{ background: 'rgba(29,140,255,0.1)', border: '1px solid rgba(29,140,255,0.25)', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', color: '#1d8cff', fontSize: 10, display: 'flex', alignItems: 'center', gap: 4 }}
+                  title={`Voice Call ${c.name}`}
+                >
+                  <Phone size={10} /> Call
+                </button>
+                <button 
+                  onClick={() => startCall({ type: 'VIDEO', contact: c, roomId: 'war-room' })}
+                  style={{ background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', color: '#a78bfa', fontSize: 10, display: 'flex', alignItems: 'center', gap: 4 }}
+                  title={`Video Call ${c.name}`}
+                >
+                  <Video size={10} /> Video
+                </button>
+              </div>
             </div>
           ))}
-          <div style={{ marginTop: 12 }}>
+
+          <div style={{ marginTop: 14 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-dim)', marginBottom: 8, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Quick Actions</div>
             {[
               { label: 'Broadcast Alert to All Users', icon: Radio, color: '#ef4444' },
@@ -408,8 +618,9 @@ export default function CrisisMode() {
               return (
                 <button 
                   key={action.label} 
-                  onClick={() => handleQuickAction(action.label, action.color)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', background: `${action.color}10`, border: `1px solid ${action.color}30`, borderRadius: 8, padding: '8px 12px', cursor: 'pointer', color: action.color, fontSize: 11, fontWeight: 600, marginBottom: 6, textAlign: 'left', transition: 'all 0.15s' }}
+                  onClick={() => handleQuickActionClick(action.label)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', background: `${action.color}10`, border: `1px solid ${action.color}30`, borderRadius: 8, padding: '9px 12px', cursor: 'pointer', color: action.color, fontSize: 11, fontWeight: 600, marginBottom: 6, textAlign: 'left', transition: 'all 0.15s' }}
+                  className="hover-glow"
                 >
                   <Icon size={12} />{action.label}
                 </button>

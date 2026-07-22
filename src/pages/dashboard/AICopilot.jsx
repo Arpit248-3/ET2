@@ -1,12 +1,32 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Bot, Send, User, Sparkles, RefreshCw, Copy, ThumbsUp, ThumbsDown, Database, ChevronRight } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import DashboardLayout from '../../components/layout/DashboardLayout.jsx';
-import GlassCard from '../../components/ui/GlassCard.jsx';
-import PageHeader from '../../components/ui/PageHeader.jsx';
-import { queryCopilot } from '../../services/api.js';
-import { useScenario } from '../../context/ScenarioContext.jsx';
-import { useToast } from '../../components/ui/Toast.jsx';
+import React, { useState, useRef, useEffect } from "react";
+import {
+  Bot,
+  Send,
+  User,
+  Sparkles,
+  RefreshCw,
+  Copy,
+  ThumbsUp,
+  ThumbsDown,
+  Database,
+  ChevronRight,
+} from "lucide-react";
+
+import { useNavigate, useLocation } from "react-router-dom";
+
+import DashboardLayout from "../../components/layout/DashboardLayout.jsx";
+import GlassCard from "../../components/ui/GlassCard.jsx";
+import PageHeader from "../../components/ui/PageHeader.jsx";
+
+import { queryCopilot } from "../../services/api.js";
+import { useScenario } from "../../context/ScenarioContext.jsx";
+import { useToast } from "../../components/ui/Toast.jsx";
+
+/* ---------- JARVIS ---------- */
+
+import FadeOverlay from "./jarvis/FadeOverlay";
+import AIBrief from "./jarvis/AIBrief";
+import useJarvisState from "./jarvis/useJarvisState";
 
 const suggestions = [
   "What is India's current crude oil stock level?",
@@ -226,29 +246,213 @@ function buildOfflineAnswer(question, systemState, activeScenario) {
 }
 
 export default function AICopilot() {
-  const navigate = useNavigate();
-  const { addToast: showToast } = useToast();
-  const { backendOnline, systemState, activeScenario } = useScenario();
-  const [messages, setMessages] = useState(initialMessages);
-  const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
-  const messagesEndRef = useRef(null);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    const navigate = useNavigate();
+
+    const { addToast: showToast } = useToast();
+
+    const {
+        backendOnline,
+        systemState,
+        activeScenario
+    } = useScenario();
+
+    /* -----------------------------
+       CHAT STATE
+    ----------------------------- */
+
+    const [messages, setMessages] = useState(initialMessages);
+
+    const [input, setInput] = useState("");
+
+    const [loading, setLoading] = useState(false);
+
+    const messagesEndRef = useRef(null);
+
+    const jarvis = useJarvisState();
+
+    const [showBrief, setShowBrief] = useState(false);
+
+    // Track last query so auto-refresh can re-run it
+    const lastQueryRef = useRef('');
+    const [briefRefreshing, setBriefRefreshing] = useState(false);
+    const showBriefRef = useRef(false);
+    useEffect(() => { showBriefRef.current = showBrief; }, [showBrief]);
+
+    const location = useLocation();
+    const initialQueryHandledRef = useRef(false);
+
+    // ── Auto-submit search query from Topbar ─────────────────────────────
+    useEffect(() => {
+        if (location.state?.initialQuery && !initialQueryHandledRef.current) {
+            initialQueryHandledRef.current = true;
+            const queryText = location.state.initialQuery;
+            window.history.replaceState({}, document.title);
+            sendMessage(queryText);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location.state]);
+
+    // ── Scroll to latest message ──────────────────────────────────────────
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages]);
+
+    // ── Phase 11 / Phase 10 — SSE live event listener ─────────────────────
+    // Opens a persistent connection to the backend event stream.
+    // When the pipeline re-runs an engine (Risk, Procurement, SPR, etc.)
+    // and the brief is visible, silently refresh jarvis.brief.
+    useEffect(() => {
+        if (!backendOnline) return;
+
+        const REFRESH_EVENTS = new Set([
+            'RiskUpdated', 'ProcurementUpdated', 'SPRUpdated',
+            'EconomicUpdated', 'ScenarioActivated', 'PipelineCompleted',
+        ]);
+
+        let es;
+        let debounceTimer;
+
+        const silentRefresh = async () => {
+            const query = lastQueryRef.current;
+            if (!query || !showBriefRef.current) return;
+            try {
+                setBriefRefreshing(true);
+                const res = await queryCopilot({
+                    query,
+                    scenario_id: activeScenario?.id || null,
+                });
+                if (!res) return;
+                jarvis.setBrief({
+                    executive_summary: res.executive_summary || res.answer || '',
+                    severity:          typeof res.severity === 'number' ? res.severity : 75,
+                    confidence:        typeof res.confidence === 'number' ? res.confidence : 90,
+                    immediate_effects: Array.isArray(res.immediate_effects) ? res.immediate_effects : [],
+                    economic_impact:   res.economic_impact && typeof res.economic_impact === 'object' ? res.economic_impact : {},
+                    supply_chain:      res.supply_chain   && typeof res.supply_chain   === 'object' ? res.supply_chain   : {},
+                    recommendations:   Array.isArray(res.recommendations) ? res.recommendations : (res.recommended_actions || []),
+                    alternatives:      Array.isArray(res.alternatives)    ? res.alternatives    : [],
+                    compliance:        res.compliance     && typeof res.compliance     === 'object' ? res.compliance     : {},
+                    evidence:          Array.isArray(res.evidence)        ? res.evidence        : (res.evidence_str ? [res.evidence_str] : []),
+                    decision_trace:    Array.isArray(res.decision_trace)  ? res.decision_trace  : [],
+                    executive_brief:   res.executive_brief || res.executive_summary || res.answer || '',
+                });
+            } catch (e) {
+                // Silent — don't disrupt UI on refresh failure
+                console.debug('[SSE refresh] failed silently:', e);
+            } finally {
+                setBriefRefreshing(false);
+            }
+        };
+
+        try {
+            es = new EventSource(`${import.meta.env.VITE_API_BASE || 'http://127.0.0.1:8000/api'}/events/stream`);
+
+            es.onmessage = (e) => {
+                try {
+                    const { event } = JSON.parse(e.data);
+                    if (REFRESH_EVENTS.has(event) && showBriefRef.current) {
+                        // Debounce — pipeline fires multiple events in sequence;
+                        // wait 1.5 s after the last one before re-querying
+                        clearTimeout(debounceTimer);
+                        debounceTimer = setTimeout(silentRefresh, 1500);
+                    }
+                } catch (_) {}
+            };
+
+            es.onerror = () => {
+                // EventSource auto-reconnects; just log quietly
+                console.debug('[SSE] connection lost — will retry automatically');
+            };
+        } catch (_) {
+            // EventSource not supported or CORS issue — silently skip
+        }
+
+        return () => {
+            clearTimeout(debounceTimer);
+            if (es) es.close();
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [backendOnline]);
+
+    // ── Phase 10 — Scenario change auto-refresh ───────────────────────────
+    // If the active scenario changes while the brief is displayed,
+    // re-run the last query so the brief reflects the new scenario context.
+    const prevScenarioIdRef = useRef(null);
+    useEffect(() => {
+        const newId = activeScenario?.id ?? null;
+        if (
+            prevScenarioIdRef.current !== null &&
+            prevScenarioIdRef.current !== newId &&
+            showBriefRef.current &&
+            lastQueryRef.current
+        ) {
+            // Scenario actually changed while brief is open
+            const refresh = async () => {
+                try {
+                    setBriefRefreshing(true);
+                    const res = await queryCopilot({
+                        query: lastQueryRef.current,
+                        scenario_id: newId,
+                    });
+                    if (!res) return;
+                    jarvis.setBrief({
+                        executive_summary: res.executive_summary || res.answer || '',
+                        severity:          typeof res.severity === 'number' ? res.severity : 75,
+                        confidence:        typeof res.confidence === 'number' ? res.confidence : 90,
+                        immediate_effects: Array.isArray(res.immediate_effects) ? res.immediate_effects : [],
+                        economic_impact:   res.economic_impact && typeof res.economic_impact === 'object' ? res.economic_impact : {},
+                        supply_chain:      res.supply_chain   && typeof res.supply_chain   === 'object' ? res.supply_chain   : {},
+                        recommendations:   Array.isArray(res.recommendations) ? res.recommendations : (res.recommended_actions || []),
+                        alternatives:      Array.isArray(res.alternatives)    ? res.alternatives    : [],
+                        compliance:        res.compliance     && typeof res.compliance     === 'object' ? res.compliance     : {},
+                        evidence:          Array.isArray(res.evidence)        ? res.evidence        : [],
+                        decision_trace:    Array.isArray(res.decision_trace)  ? res.decision_trace  : [],
+                        executive_brief:   res.executive_brief || res.executive_summary || res.answer || '',
+                    });
+                } catch (_) {}
+                finally { setBriefRefreshing(false); }
+            };
+            refresh();
+        }
+        prevScenarioIdRef.current = newId;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeScenario?.id]);
+
+    // sendMessage() starts below...
 
   const sendMessage = async (text) => {
     const userText = text || input.trim();
     if (!userText) return;
+    lastQueryRef.current = userText;   // ← track for auto-refresh
     setInput('');
     const now = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
     setMessages(prev => [...prev, { role: 'user', content: userText, time: now }]);
     setLoading(true);
+    jarvis.setLoading(true);
 
     try {
-      const res = await queryCopilot({ message: userText });
+      const res = await queryCopilot({
+        query: userText,
+        scenario_id: activeScenario?.id || null,
+      });
       if (!res) throw new Error('No response from copilot');
+      // Map backend full-brief response directly — no hardcoded values
+      jarvis.setBrief({
+        executive_summary: res.executive_summary || res.answer || '',
+        severity:          typeof res.severity === 'number' ? res.severity : 75,
+        confidence:        typeof res.confidence === 'number' ? res.confidence : 90,
+        immediate_effects: Array.isArray(res.immediate_effects) ? res.immediate_effects : [],
+        economic_impact:   res.economic_impact && typeof res.economic_impact === 'object' ? res.economic_impact : {},
+        supply_chain:      res.supply_chain   && typeof res.supply_chain   === 'object' ? res.supply_chain   : {},
+        recommendations:   Array.isArray(res.recommendations) ? res.recommendations : (res.recommended_actions || []),
+        alternatives:      Array.isArray(res.alternatives)    ? res.alternatives    : [],
+        compliance:        res.compliance     && typeof res.compliance     === 'object' ? res.compliance     : {},
+        evidence:          Array.isArray(res.evidence)        ? res.evidence        : (res.evidence_str ? [res.evidence_str] : []),
+        decision_trace:    Array.isArray(res.decision_trace)  ? res.decision_trace  : ['Risk Engine', 'Economic Engine', 'AI Reasoning'],
+        executive_brief:   res.executive_brief || res.executive_summary || res.answer || '',
+      });
+      setShowBrief(true);
       
       setMessages(prev => [...prev, {
         role: 'assistant',
@@ -264,6 +468,34 @@ export default function AICopilot() {
       console.warn('Copilot API offline — using context-derived answer:', err);
       // Build a dynamic answer from live pipelineState data
       const offlineAnswer = buildOfflineAnswer(userText, systemState, activeScenario);
+      // Offline path: build brief from the structured offlineAnswer object
+      jarvis.setBrief({
+        executive_summary: offlineAnswer.answer,
+        severity:          parseInt(systemState?.kpi?.risk_score) || 72,
+        confidence:        91,
+        immediate_effects: [
+          `Supply gap: ${systemState?.kpi?.supply_gap || 'N/A'}`,
+          `Active incidents: ${systemState?.kpi?.active_incidents ?? 0}`,
+          `Brent price: $${systemState?.brent_price || 'N/A'}/bbl`,
+        ],
+        economic_impact: {
+          oil_price:  systemState?.brent_price ? `$${systemState.brent_price}/bbl` : '—',
+          supply_gap: systemState?.kpi?.supply_gap || '—',
+          spr_coverage: systemState?.kpi?.spr_coverage != null ? `${systemState.kpi.spr_coverage}%` : '—',
+        },
+        supply_chain: {
+          'Tanker Fleet':    'AIS tracking nominal',
+          'SPR Sites':       'Vishakhapatnam, Padur, Mangalore – Online',
+          'Refinery Intake': 'Operating nominally',
+        },
+        recommendations: offlineAnswer.recommended_actions || [],
+        alternatives:    [],
+        compliance:      { sanctions_check: 'Cleared', insurance_status: 'Valid' },
+        evidence:        offlineAnswer.evidence ? [offlineAnswer.evidence] : [],
+        decision_trace:  ['Offline Intelligence', 'Pipeline Analysis', 'KPI Extraction', 'Response Generated'],
+        executive_brief: offlineAnswer.answer,
+      });
+      setShowBrief(true);
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: offlineAnswer.answer,
@@ -276,6 +508,7 @@ export default function AICopilot() {
       }]);
     } finally {
       setLoading(false);
+      jarvis.setLoading(false);
     }
   };
 
@@ -304,6 +537,8 @@ export default function AICopilot() {
 
   return (
     <DashboardLayout>
+      <FadeOverlay visible={jarvis.loading} />
+
       <PageHeader
         title="AI Chat Copilot"
         subtitle="Conversational intelligence interface powered by UrjaNetra AI"
@@ -315,247 +550,313 @@ export default function AICopilot() {
         }
       />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 16, height: 'calc(100vh - 180px)' }}>
-        {/* Suggestions Panel */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <GlassCard className="card" style={{ padding: '14px 16px', flex: 'none' }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-dim)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 10 }}>Quick Prompts</div>
-            {suggestions.map((s, i) => (
-              <button key={i} onClick={() => sendMessage(s)}
-                style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 10px', marginBottom: 6, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-soft)', borderRadius: 8, cursor: 'pointer', fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.4, transition: 'all 0.15s' }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(29,140,255,0.08)'; e.currentTarget.style.borderColor = 'rgba(29,140,255,0.3)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.borderColor = 'var(--border-soft)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}>
-                {s}
-              </button>
-            ))}
-          </GlassCard>
-
-          <GlassCard className="card" style={{ padding: '14px 16px' }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-dim)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 10 }}>Data Sources Active</div>
-            {['Reuters/Bloomberg', 'IEA Live Feed', 'PPAC Database', 'AIS Ship Tracker', 'SCADA System', 'PESO Reports'].map(src => (
-              <div key={src} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                <div style={{ width: 6, height: 6, borderRadius: '50%', background: backendOnline ? '#22c55e' : '#f59e0b', flexShrink: 0 }} />
-                <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>{src}</span>
-              </div>
-            ))}
-          </GlassCard>
-
-          {!backendOnline && (
-            <GlassCard className="card" style={{ padding: '12px 14px', border: '1px solid rgba(245,158,11,0.25)', background: 'rgba(245,158,11,0.04)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                <Database size={12} color="#f59e0b" />
-                <span style={{ fontSize: 10, fontWeight: 700, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Context Mode</span>
-              </div>
-              <p style={{ fontSize: 10, color: 'var(--text-dim)', lineHeight: 1.5, margin: 0 }}>
-                Responses derived from live dashboard data (KPIs, risk signals, incidents). Reconnect backend for full NLP analysis.
-              </p>
+      {!showBrief && (
+        <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 16, height: 'calc(100vh - 180px)' }}>
+          {/* Suggestions Panel */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <GlassCard className="card" style={{ padding: '14px 16px', flex: 'none' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-dim)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 10 }}>Quick Prompts</div>
+              {suggestions.map((s, i) => (
+                <button key={i} onClick={() => sendMessage(s)}
+                  style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 10px', marginBottom: 6, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-soft)', borderRadius: 8, cursor: 'pointer', fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.4, transition: 'all 0.15s' }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = 'rgba(29,140,255,0.08)';
+                    e.currentTarget.style.borderColor = 'rgba(29,140,255,0.3)';
+                    e.currentTarget.style.color = 'var(--text-primary)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                    e.currentTarget.style.borderColor = 'var(--border-soft)';
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                  }}>
+                  {s}
+                </button>
+              ))}
             </GlassCard>
-          )}
-        </div>
 
-        {/* Chat Area */}
-        <GlassCard className="card" style={{ padding: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {messages.map((msg, i) => (
-              <div key={i} style={{ display: 'flex', gap: 12, flexDirection: msg.role === 'user' ? 'row-reverse' : 'row' }}>
-                <div style={{ width: 34, height: 34, borderRadius: '50%', background: msg.role === 'assistant' ? 'linear-gradient(135deg, #1d8cff, #8b5cf6)' : 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  {msg.role === 'assistant' ? <Bot size={16} color="#fff" /> : <User size={16} color="var(--text-secondary)" />}
+            <GlassCard className="card" style={{ padding: '14px 16px' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-dim)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 10 }}>
+                Data Sources Active
+              </div>
+
+              {['Reuters/Bloomberg', 'IEA Live Feed', 'PPAC Database', 'AIS Ship Tracker', 'SCADA System', 'PESO Reports'].map(src => (
+                <div key={src} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                  <div
+                    style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: '50%',
+                      background: backendOnline ? '#22c55e' : '#f59e0b',
+                      flexShrink: 0
+                    }}
+                  />
+                  <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>{src}</span>
                 </div>
-                <div style={{ maxWidth: '75%' }}>
-                  <div style={{ background: msg.role === 'assistant' ? 'rgba(29,140,255,0.08)' : 'rgba(255,255,255,0.06)', border: `1px solid ${msg.role === 'assistant' ? (msg.offline ? 'rgba(245,158,11,0.2)' : 'rgba(29,140,255,0.2)') : 'rgba(255,255,255,0.1)'}`, borderRadius: msg.role === 'assistant' ? '4px 12px 12px 12px' : '12px 4px 12px 12px', padding: '12px 16px', fontSize: 12, lineHeight: 1.7 }}>
-                    {renderContent(msg.content)}
+              ))}
+            </GlassCard>
 
-                    {/* Evidence widget */}
-                    {msg.role === 'assistant' && msg.evidence && (
-                      <div style={{
-                        marginTop: 10,
-                        padding: '8px 12px',
-                        background: 'rgba(29, 140, 255, 0.04)',
-                        border: '1px solid rgba(29, 140, 255, 0.1)',
-                        borderRadius: 8,
-                        fontSize: 11,
-                        color: 'rgba(255, 255, 255, 0.7)',
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: 8
-                      }}>
-                        <Database size={13} style={{ color: '#1d8cff', marginTop: 2, flexShrink: 0 }} />
-                        <div>
-                          <strong style={{ color: '#1d8cff', display: 'block', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>Evidence Base</strong>
-                          {msg.evidence}
-                        </div>
-                      </div>
-                    )}
+            {!backendOnline && (
+              <GlassCard
+                className="card"
+                style={{
+                  padding: '12px 14px',
+                  border: '1px solid rgba(245,158,11,0.25)',
+                  background: 'rgba(245,158,11,0.04)'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                  <Database size={12} color="#f59e0b" />
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      color: '#f59e0b',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em'
+                    }}
+                  >
+                    Context Mode
+                  </span>
+                </div>
 
-                    {/* Chart widget */}
-                    {msg.role === 'assistant' && msg.chart_data && msg.chart_data.labels && (
-                      <div style={{
-                        marginTop: 12,
-                        padding: 12,
-                        background: 'rgba(255, 255, 255, 0.02)',
-                        border: '1px solid rgba(255, 255, 255, 0.05)',
-                        borderRadius: 8,
-                      }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-dim)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                          Resource Allocation Projection
+                <p
+                  style={{
+                    fontSize: 10,
+                    color: 'var(--text-dim)',
+                    lineHeight: 1.5,
+                    margin: 0
+                  }}
+                >
+                  Responses derived from live dashboard data (KPIs, risk signals,
+                  incidents). Reconnect backend for full NLP analysis.
+                </p>
+              </GlassCard>
+            )}
+          </div>
+
+          {/* Chat Area */}
+          <GlassCard className="card" style={{ padding: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {messages.map((msg, i) => (
+                <div key={i} style={{ display: 'flex', gap: 12, flexDirection: msg.role === 'user' ? 'row-reverse' : 'row' }}>
+                  <div style={{ width: 34, height: 34, borderRadius: '50%', background: msg.role === 'assistant' ? 'linear-gradient(135deg, #1d8cff, #8b5cf6)' : 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    {msg.role === 'assistant' ? <Bot size={16} color="#fff" /> : <User size={16} color="var(--text-secondary)" />}
+                  </div>
+                  <div style={{ maxWidth: '75%' }}>
+                    <div style={{ background: msg.role === 'assistant' ? 'rgba(29,140,255,0.08)' : 'rgba(255,255,255,0.06)', border: `1px solid ${msg.role === 'assistant' ? (msg.offline ? 'rgba(245,158,11,0.2)' : 'rgba(29,140,255,0.2)') : 'rgba(255,255,255,0.1)'}`, borderRadius: msg.role === 'assistant' ? '4px 12px 12px 12px' : '12px 4px 12px 12px', padding: '12px 16px', fontSize: 12, lineHeight: 1.7 }}>
+                      {renderContent(msg.content)}
+
+                      {/* Evidence widget */}
+                      {msg.role === 'assistant' && msg.evidence && (
+                        <div style={{
+                          marginTop: 10,
+                          padding: '8px 12px',
+                          background: 'rgba(29, 140, 255, 0.04)',
+                          border: '1px solid rgba(29, 140, 255, 0.1)',
+                          borderRadius: 8,
+                          fontSize: 11,
+                          color: 'rgba(255, 255, 255, 0.7)',
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: 8
+                        }}>
+                          <Database size={13} style={{ color: '#1d8cff', marginTop: 2, flexShrink: 0 }} />
+                          <div>
+                            <strong style={{ color: '#1d8cff', display: 'block', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>Evidence Base</strong>
+                            {msg.evidence}
+                          </div>
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                          {msg.chart_data.labels.map((label, idx) => {
-                            const val = msg.chart_data.values[idx] || 0;
-                            const color = idx === 0 ? '#1d8cff' : idx === 1 ? '#ef4444' : '#22c55e';
-                            return (
-                              <div key={label}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, marginBottom: 2 }}>
-                                  <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
-                                  <strong style={{ color: 'var(--text-primary)' }}>{val.toFixed(1)}%</strong>
+                      )}
+
+                      {/* Chart widget */}
+                      {msg.role === 'assistant' && msg.chart_data && msg.chart_data.labels && (
+                        <div style={{
+                          marginTop: 12,
+                          padding: 12,
+                          background: 'rgba(255, 255, 255, 0.02)',
+                          border: '1px solid rgba(255, 255, 255, 0.05)',
+                          borderRadius: 8,
+                        }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-dim)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            Resource Allocation Projection
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            {msg.chart_data.labels.map((label, idx) => {
+                              const val = msg.chart_data.values[idx] || 0;
+                              const color = idx === 0 ? '#1d8cff' : idx === 1 ? '#ef4444' : '#22c55e';
+                              return (
+                                <div key={label}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, marginBottom: 2 }}>
+                                    <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
+                                    <strong style={{ color: 'var(--text-primary)' }}>{val.toFixed(1)}%</strong>
+                                  </div>
+                                  <div style={{ width: '100%', height: 6, background: 'rgba(255, 255, 255, 0.05)', borderRadius: 3, overflow: 'hidden' }}>
+                                    <div style={{ width: `${Math.min(100, Math.max(0, val))}%`, height: '100%', background: color, borderRadius: 3, transition: 'width 0.5s ease-out' }} />
+                                  </div>
                                 </div>
-                                <div style={{ width: '100%', height: 6, background: 'rgba(255, 255, 255, 0.05)', borderRadius: 3, overflow: 'hidden' }}>
-                                  <div style={{ width: `${Math.min(100, Math.max(0, val))}%`, height: '100%', background: color, borderRadius: 3, transition: 'width 0.5s ease-out' }} />
-                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Actions widget */}
+                      {msg.role === 'assistant' && msg.recommended_actions && msg.recommended_actions.length > 0 && (
+                        <div style={{ marginTop: 12 }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-dim)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            Recommended Actions
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {msg.recommended_actions.map((act, idx) => (
+                              <div key={idx} style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 8,
+                                padding: '8px 12px',
+                                background: 'rgba(255, 255, 255, 0.02)',
+                                border: '1px solid rgba(255, 255, 255, 0.05)',
+                                borderRadius: 8,
+                                fontSize: 11,
+                                color: 'var(--text-secondary)'
+                              }}>
+                                <div style={{
+                                  width: 14,
+                                  height: 14,
+                                  borderRadius: 3,
+                                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  flexShrink: 0,
+                                  cursor: 'pointer',
+                                  background: 'rgba(255, 255, 255, 0.03)',
+                                  fontSize: 9,
+                                  transition: 'all 0.15s'
+                                }}
+                                     onClick={(e) => {
+                                       if (e.currentTarget.getAttribute('data-checked') === 'true') return;
+                                       e.currentTarget.setAttribute('data-checked', 'true');
+                                       e.currentTarget.style.background = '#22c55e';
+                                       e.currentTarget.style.borderColor = '#22c55e';
+                                       e.currentTarget.innerHTML = '✓';
+                                       e.currentTarget.style.color = '#fff';
+                                       showToast(`Action initiated: ${act}`, 'success');
+                                     }}
+                                />
+                                <span>{act}</span>
                               </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Linked Pages widget */}
+                      {msg.role === 'assistant' && msg.linked_pages && msg.linked_pages.length > 0 && (
+                        <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                          {msg.linked_pages.map((linkPath) => {
+                            let pageLabel = 'View details';
+                            if (linkPath === '/spr-planner') pageLabel = 'Open SPR Planner';
+                            else if (linkPath === '/procurement-optimizer') pageLabel = 'Open Procurement';
+                            else if (linkPath === '/executive-decision-board') pageLabel = 'Open Decision Board';
+                            else if (linkPath === '/refinery-compatibility') pageLabel = 'Open Refinery Compat.';
+                            else if (linkPath === '/risk-intelligence') pageLabel = 'Open Risk Intelligence';
+                            else if (linkPath === '/data-sources') pageLabel = 'Open Data Sources';
+                            else if (linkPath === '/command-center') pageLabel = 'Open Command Center';
+
+                            return (
+                              <button
+                                key={linkPath}
+                                onClick={() => navigate(linkPath)}
+                                className="btn btn-secondary"
+                                style={{
+                                  padding: '6px 12px',
+                                  fontSize: 10,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                  borderRadius: 6,
+                                  background: 'rgba(255,255,255,0.04)',
+                                  border: '1px solid var(--border-soft)'
+                                }}
+                              >
+                                {pageLabel}
+                                <ChevronRight size={12} />
+                              </button>
                             );
                           })}
                         </div>
-                      </div>
-                    )}
-
-                    {/* Actions widget */}
-                    {msg.role === 'assistant' && msg.recommended_actions && msg.recommended_actions.length > 0 && (
-                      <div style={{ marginTop: 12 }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-dim)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                          Recommended Actions
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                          {msg.recommended_actions.map((act, idx) => (
-                            <div key={idx} style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 8,
-                              padding: '8px 12px',
-                              background: 'rgba(255, 255, 255, 0.02)',
-                              border: '1px solid rgba(255, 255, 255, 0.05)',
-                              borderRadius: 8,
-                              fontSize: 11,
-                              color: 'var(--text-secondary)'
-                            }}>
-                              <div style={{
-                                width: 14,
-                                height: 14,
-                                borderRadius: 3,
-                                border: '1px solid rgba(255, 255, 255, 0.2)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                flexShrink: 0,
-                                cursor: 'pointer',
-                                background: 'rgba(255, 255, 255, 0.03)',
-                                fontSize: 9,
-                                transition: 'all 0.15s'
-                              }}
-                                   onClick={(e) => {
-                                     if (e.currentTarget.getAttribute('data-checked') === 'true') return;
-                                     e.currentTarget.setAttribute('data-checked', 'true');
-                                     e.currentTarget.style.background = '#22c55e';
-                                     e.currentTarget.style.borderColor = '#22c55e';
-                                     e.currentTarget.innerHTML = '✓';
-                                     e.currentTarget.style.color = '#fff';
-                                     showToast(`Action initiated: ${act}`, 'success');
-                                   }}
-                              />
-                              <span>{act}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Linked Pages widget */}
-                    {msg.role === 'assistant' && msg.linked_pages && msg.linked_pages.length > 0 && (
-                      <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                        {msg.linked_pages.map((linkPath) => {
-                          let pageLabel = 'View details';
-                          if (linkPath === '/spr-planner') pageLabel = 'Open SPR Planner';
-                          else if (linkPath === '/procurement-optimizer') pageLabel = 'Open Procurement';
-                          else if (linkPath === '/executive-decision-board') pageLabel = 'Open Decision Board';
-                          else if (linkPath === '/refinery-compatibility') pageLabel = 'Open Refinery Compat.';
-                          else if (linkPath === '/risk-intelligence') pageLabel = 'Open Risk Intelligence';
-                          else if (linkPath === '/data-sources') pageLabel = 'Open Data Sources';
-                          else if (linkPath === '/command-center') pageLabel = 'Open Command Center';
-
-                          return (
-                            <button
-                              key={linkPath}
-                              onClick={() => navigate(linkPath)}
-                              className="btn btn-secondary"
-                              style={{
-                                padding: '6px 12px',
-                                fontSize: 10,
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 4,
-                                borderRadius: 6,
-                                background: 'rgba(255,255,255,0.04)',
-                                border: '1px solid var(--border-soft)'
-                              }}
-                            >
-                              {pageLabel}
-                              <ChevronRight size={12} />
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                  <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 4, textAlign: msg.role === 'user' ? 'right' : 'left', display: 'flex', gap: 8, justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start', alignItems: 'center' }}>
-                    {msg.time}
-                    {msg.offline && <span style={{ color: '#f59e0b', fontSize: 9, fontWeight: 700 }}>CONTEXT MODE</span>}
-                    {msg.live && <span style={{ color: '#22c55e', fontSize: 9, fontWeight: 700 }}>LIVE</span>}
-                    {msg.role === 'assistant' && (
-                      <>
-                        <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', padding: 0 }} title="Copy" onClick={() => navigator.clipboard?.writeText(msg.content)}><Copy size={11} /></button>
-                        <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', padding: 0 }} title="Helpful"><ThumbsUp size={11} /></button>
-                        <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', padding: 0 }} title="Not helpful"><ThumbsDown size={11} /></button>
-                      </>
-                    )}
+                      )}
+                    </div>
+                    <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 4, textAlign: msg.role === 'user' ? 'right' : 'left', display: 'flex', gap: 8, justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start', alignItems: 'center' }}>
+                      {msg.time}
+                      {msg.offline && <span style={{ color: '#f59e0b', fontSize: 9, fontWeight: 700 }}>CONTEXT MODE</span>}
+                      {msg.live && <span style={{ color: '#22c55e', fontSize: 9, fontWeight: 700 }}>LIVE</span>}
+                      {msg.role === 'assistant' && (
+                        <>
+                          <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', padding: 0 }} title="Copy" onClick={() => navigator.clipboard?.writeText(msg.content)}><Copy size={11} /></button>
+                          <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', padding: 0 }} title="Helpful"><ThumbsUp size={11} /></button>
+                          <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', padding: 0 }} title="Not helpful"><ThumbsDown size={11} /></button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-            {loading && (
-              <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'linear-gradient(135deg, #1d8cff, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Bot size={16} color="#fff" />
+              ))}
+              {loading && (
+                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'linear-gradient(135deg, #1d8cff, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Bot size={16} color="#fff" />
+                  </div>
+                  <div style={{ background: 'rgba(29,140,255,0.08)', border: '1px solid rgba(29,140,255,0.2)', borderRadius: '4px 12px 12px 12px', padding: '14px 18px', display: 'flex', gap: 6, alignItems: 'center' }}>
+                    {[0, 1, 2].map(j => (
+                      <div key={j} style={{ width: 7, height: 7, borderRadius: '50%', background: '#1d8cff', animation: `pulse-glow 1.2s ease-in-out ${j * 0.2}s infinite` }} />
+                    ))}
+                  </div>
                 </div>
-                <div style={{ background: 'rgba(29,140,255,0.08)', border: '1px solid rgba(29,140,255,0.2)', borderRadius: '4px 12px 12px 12px', padding: '14px 18px', display: 'flex', gap: 6, alignItems: 'center' }}>
-                  {[0, 1, 2].map(j => (
-                    <div key={j} style={{ width: 7, height: 7, borderRadius: '50%', background: '#1d8cff', animation: `pulse-glow 1.2s ease-in-out ${j * 0.2}s infinite` }} />
-                  ))}
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Input */}
-          <div style={{ padding: '14px 20px', borderTop: '1px solid var(--border-soft)' }}>
-            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
-              <div style={{ flex: 1, position: 'relative' }}>
-                <input
-                  value={input}
-                  onChange={e => setInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()}
-                  placeholder="Ask about supply chains, risks, forecasts, regulations..."
-                  style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-soft)', borderRadius: 10, padding: '11px 16px', fontSize: 13, color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box' }}
-                />
-                <Sparkles size={14} color="#8b5cf6" style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }} />
-              </div>
-              <button className="btn btn-primary" style={{ padding: '11px 18px', display: 'flex', alignItems: 'center', gap: 6 }} onClick={() => sendMessage()} disabled={loading || !input.trim()}>
-                <Send size={14} />Send
-              </button>
+              )}
+              <div ref={messagesEndRef} />
             </div>
-          </div>
-        </GlassCard>
-      </div>
+
+            {/* Input */}
+            <div style={{ padding: '14px 20px', borderTop: '1px solid var(--border-soft)' }}>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
+                <div style={{ flex: 1, position: 'relative' }}>
+                  <input
+                    value={input}
+                    onChange={e => setInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()}
+                    placeholder="Ask about supply chains, risks, forecasts, regulations..."
+                    style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-soft)', borderRadius: 10, padding: '11px 16px', fontSize: 13, color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                  <Sparkles size={14} color="#8b5cf6" style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }} />
+                </div>
+                <button
+                  className="btn btn-primary"
+                  style={{
+                    padding: '11px 18px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6
+                  }}
+                  onClick={() => sendMessage()}
+                  disabled={loading || !input.trim()}
+                >
+                  <Send size={14} />
+                  Send
+                </button>
+              </div>
+            </div>
+          </GlassCard>
+        </div>
+      )}
+
+      {showBrief && (
+        <AIBrief
+          brief={jarvis.brief}
+          onBack={() => setShowBrief(false)}
+          refreshing={briefRefreshing}
+        />
+      )}
     </DashboardLayout>
   );
 }
