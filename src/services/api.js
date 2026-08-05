@@ -85,6 +85,20 @@ export const fetchScenarios = () => apiFetch('/scenarios');
 export const activateScenario = (scenarioId) =>
   apiFetch(`/scenarios/${scenarioId}/activate`, { method: 'POST' });
 
+export const compareScenarios = async (payload = {}) => {
+  const merged = {
+    scenario_ids: [],
+    severity_multiplier: 1.0,
+    duration_days: 30,
+    ...payload,
+  };
+  return apiFetch('/scenarios/compare', {
+    method: 'POST',
+    body: JSON.stringify(merged),
+  });
+};
+
+
 // ─── System State (KPIs + Incidents + Risk Signals) ───────────────────────
 export const fetchState = async () => {
   const data = await apiFetch('/state');

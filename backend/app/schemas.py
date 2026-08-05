@@ -32,6 +32,40 @@ class ScenarioActivateResponse(BaseModel):
     activated_at: str
 
 
+class ScenarioCompareRequest(BaseModel):
+    scenario_ids: List[str] = Field(default_factory=list)
+    severity_multiplier: float = 1.0
+    duration_days: int = 30
+
+
+class ScenarioCompareItem(BaseModel):
+    id: str
+    name: str
+    severity: str
+    probability: int
+    region: str
+    geopolitical_risk: float
+    import_gap_mbbl_day: float
+    total_supply_loss_mbbl: float
+    brent_baseline_usd: float
+    brent_shock_usd: float
+    crude_price_spike_usd: float
+    gdp_impact_pct: float
+    inflation_pct: float
+    affected_routes: List[str]
+    safe_suppliers: List[str]
+    is_active: bool
+    recommended_action: str
+
+
+class ScenarioCompareResponse(BaseModel):
+    scenarios: List[ScenarioCompareItem]
+    overlay_chart: List[Dict[str, Any]]
+    comparative_summary: str
+    timestamp: str
+
+
+
 # ─── State / KPI ───────────────────────────────────────────────────────────────
 
 class KPIData(BaseModel):

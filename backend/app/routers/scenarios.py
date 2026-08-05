@@ -8,7 +8,13 @@ from datetime import datetime, timezone
 
 from app.database import get_db
 from app.models import ScenarioState, AuditLog
-from app.schemas import ScenarioSummary, ScenarioActivateResponse
+from app.schemas import (
+    ScenarioSummary,
+    ScenarioActivateResponse,
+    ScenarioCompareRequest,
+    ScenarioCompareResponse,
+    ScenarioCompareItem,
+)
 from app.core.scenario_engine import get_all_scenarios, get_scenario
 from app.routers.audit import create_audit_entry
 
@@ -205,4 +211,143 @@ def upload_scenario(payload: dict, db: Session = Depends(get_db)):
         "message": f"Custom scenario '{name}' uploaded and activated. Demo reset to step 0.",
         "activated_at": datetime.now(timezone.utc).isoformat()
     }
+
+
+@router.post("/scenarios/compare", response_model=ScenarioCompareResponse)
+def compare_scenarios(req: ScenarioCompareRequest, db: Session = Depends(get_db)):
+    state = db.query(ScenarioState).filter(ScenarioState.id == 1).first()
+    active_id = state.active_scenario_id if state else None
+
+    all_scenarios = get_all_scenarios()
+    target_ids = req.scenario_ids
+    if not target_ids:
+        target_ids = [s.get("id") for s in all_scenarios if s.get("id")]
+
+    scenarios_data = []
+    daily_projections_map = {}
+
+    mult = float(req.severity_multiplier or 1.0)
+    dur = int(req.duration_days or 30)
+
+    for s_id in target_ids:
+        scen = get_scenario(s_id)
+        if not scen:
+            continue
+
+        name = scen.get("name", s_id)
+        sev = scen.get("severity", "HIGH")
+        prob = int(scen.get("probability", 50))
+        reg = scen.get("region", "Middle East")
+        risk = float(scen.get("geopolitical_risk") or scen.get("kpi", {}).get("risk_score") or 50)
+
+        baseline_brent = float(scen.get("brent_baseline_usd", 88.0))
+        price_spike = scen.get("crude_price_spike_usd")
+        if price_spike is None:
+            b_shock = scen.get("brent_shock_usd")
+            price_spike = (b_shock - baseline_brent) if b_shock else 12.0
+
+        price_spike = float(price_spike) * mult
+        brent_shock = round(baseline_brent + price_spike, 2)
+
+        raw_gap = (
+            scen.get("india_import_gap_mbbl_day") or
+            scen.get("parameters", {}).get("supply_shortfall_mbbl") or 1.8
+        )
+        if isinstance(raw_gap, str):
+            try:
+                raw_gap = float(raw_gap.replace("M bbl/day", "").replace("M", "").strip())
+            except ValueError:
+                raw_gap = 1.8
+        import_gap = float(raw_gap) * mult
+        total_loss = round(import_gap * dur * 0.7, 1)
+
+        econ = scen.get("economic", {})
+        gdp_drag = round(float(econ.get("gdp_impact_pct", -0.30)) * mult, 2)
+        inflation = round(float(econ.get("inflation_pct", 1.20)) * mult, 2)
+        affected_routes = scen.get("affected_routes", ["Strait of Hormuz"])
+        safe_suppliers = scen.get("safe_suppliers", ["West Africa", "Brazil"])
+
+        rec_action = (
+            f"Authorize SPR drawdown of {import_gap:.1f}M bbl/d and shift procurement to {', '.join(safe_suppliers[:2])}."
+        )
+
+        scenarios_data.append(ScenarioCompareItem(
+            id=s_id,
+            name=name,
+            severity=sev,
+            probability=prob,
+            region=reg,
+            geopolitical_risk=risk,
+            import_gap_mbbl_day=round(import_gap, 2),
+            total_supply_loss_mbbl=total_loss,
+            brent_baseline_usd=baseline_brent,
+            brent_shock_usd=brent_shock,
+            crude_price_spike_usd=round(price_spike, 2),
+            gdp_impact_pct=gdp_drag,
+            inflation_pct=inflation,
+            affected_routes=affected_routes,
+            safe_suppliers=safe_suppliers,
+            is_active=(s_id == active_id),
+            recommended_action=rec_action,
+        ))
+
+        # Daily trajectory generation for overlay chart
+        daily_points = []
+        spr_level = 100.0
+        drawdown_rate = (import_gap / 45.0) * 15.0
+        for d in range(1, dur + 1):
+            if d <= 5:
+                shock_factor = d / 5.0
+            elif d <= 15:
+                shock_factor = 1.0
+            else:
+                shock_factor = max(0.1, 1.0 - (d - 15) / max(1, dur - 15) * 0.6)
+
+            brent_val = round(baseline_brent + price_spike * shock_factor, 1)
+            gap_val = round(import_gap * shock_factor, 2)
+            if gap_val > 0 and d <= 22:
+                spr_level = max(10.0, spr_level - drawdown_rate)
+            elif d > 22:
+                spr_level = min(95.0, spr_level + 0.5)
+
+            daily_points.append({
+                "day": d,
+                "brent_price": brent_val,
+                "spr_level_pct": round(spr_level, 1),
+                "supply_gap_mbbl": gap_val
+            })
+        daily_projections_map[s_id] = daily_points
+
+    # Combine into unified overlay_chart dataset
+    overlay_chart = []
+    for d in range(1, dur + 1):
+        point = {"day": d, "t": f"Day {d}"}
+        for s_id, pts in daily_projections_map.items():
+            dp = next((p for p in pts if p["day"] == d), None)
+            if dp:
+                point[f"{s_id}_price"] = dp["brent_price"]
+                point[f"{s_id}_spr"] = dp["spr_level_pct"]
+                point[f"{s_id}_gap"] = dp["supply_gap_mbbl"]
+        overlay_chart.append(point)
+
+    # Comparative AI Summary
+    if scenarios_data:
+        worst_case = max(scenarios_data, key=lambda s: s.crude_price_spike_usd)
+        summary_text = (
+            f"Comparison of {len(scenarios_data)} risk scenarios across a {dur}-day window "
+            f"({mult}x shock factor). Worst-case vulnerability identified in '{worst_case.name}' "
+            f"with peak Brent shock of ${worst_case.brent_shock_usd:.1f}/bbl and daily import gap of "
+            f"{worst_case.import_gap_mbbl_day:.1f}M bbl/day. Operational recommendation: deploy "
+            f"coordinated SPR releases and pre-allocate alternate shipping routes for Cape of Good Hope."
+        )
+    else:
+        summary_text = "No scenario data available for comparison."
+
+    return ScenarioCompareResponse(
+        scenarios=scenarios_data,
+        overlay_chart=overlay_chart,
+        comparative_summary=summary_text,
+        timestamp=datetime.now(timezone.utc).isoformat()
+    )
+
 
