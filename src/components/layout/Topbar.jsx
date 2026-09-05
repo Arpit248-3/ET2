@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Bell, HelpCircle, ChevronDown, AlertOctagon, X, Zap, LogOut } from 'lucide-react';
 import ScenarioSwitcher from '../ui/ScenarioSwitcher.jsx';
+import ThemeSwitcher from '../ui/ThemeSwitcher.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 
 
@@ -110,6 +111,9 @@ export default function Topbar({ crisisMode = false }) {
           <button className="btn btn-ghost btn-icon" onClick={() => navigate('/help')} style={{ padding: '7px' }}>
             <HelpCircle size={16} />
           </button>
+
+          {/* Theme Switcher */}
+          <ThemeSwitcher />
 
           {/* Divider */}
           <div style={{ width: 1, height: 24, background: 'var(--border-soft)', margin: '0 4px' }} />

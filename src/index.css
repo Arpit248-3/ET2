@@ -694,61 +694,70 @@ select option {
 .status-dot.crit { background: #f87171; animation: pulse-glow 1s infinite; }
 .status-dot.off { background: #475569; }
 
-/* ========== LIGHT THEME OVERRIDES ========== */
+/* ========== LIGHT THEME OVERRIDES (PLATINUM EXECUTIVE) ========== */
 body.light-theme {
   --bg-main: #f8fafc;
   --bg-deep: #f1f5f9;
-  --bg-panel: rgba(255, 255, 255, 0.74);
-  --bg-panel-hover: rgba(241, 245, 249, 0.88);
-  --bg-sidebar: rgba(255, 255, 255, 0.96);
-  --border-soft: rgba(29, 140, 255, 0.14);
-  --border-medium: rgba(29, 140, 255, 0.24);
-  --border-glow: rgba(29, 140, 255, 0.35);
+  --bg-panel: rgba(255, 255, 255, 0.88);
+  --bg-panel-hover: rgba(241, 245, 249, 0.95);
+  --bg-sidebar: rgba(255, 255, 255, 0.98);
+  --border-soft: rgba(37, 99, 235, 0.16);
+  --border-medium: rgba(37, 99, 235, 0.28);
+  --border-glow: rgba(37, 99, 235, 0.45);
   --text-main: #0f172a;
   --text-muted: #334155;
   --text-dim: #64748b;
   --text-primary: #0f172a;
   --text-secondary: #334155;
-  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.02);
-  --shadow-hover: 0 8px 30px rgba(29, 140, 255, 0.08), 0 0 15px rgba(29, 140, 255, 0.05);
+  --shadow-card: 0 10px 30px -5px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.03);
+  --shadow-hover: 0 20px 40px -10px rgba(37, 99, 235, 0.15), 0 0 20px rgba(37, 99, 235, 0.08);
 
   background-color: #f8fafc;
   color: #0f172a;
 }
 
+body.light-theme .main-content {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(37, 99, 235, 0.08) 0%, transparent 40%),
+    radial-gradient(circle at 0% 100%, rgba(14, 165, 233, 0.06) 0%, transparent 40%),
+    #f8fafc !important;
+}
+
 body.light-theme .glass {
-  background: rgba(255, 255, 255, 0.74) !important;
-  border: 1px solid rgba(29, 140, 255, 0.14) !important;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
+  background: rgba(255, 255, 255, 0.88) !important;
+  border: 1px solid rgba(37, 99, 235, 0.16) !important;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.06) !important;
 }
 
 body.light-theme .glass-strong {
-  background: rgba(255, 255, 255, 0.94) !important;
-  border: 1px solid rgba(29, 140, 255, 0.2) !important;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06) !important;
+  background: rgba(255, 255, 255, 0.98) !important;
+  border: 1px solid rgba(37, 99, 235, 0.25) !important;
+  box-shadow: 0 14px 36px -5px rgba(0, 0, 0, 0.08) !important;
 }
 
 body.light-theme .sidebar {
-  background: rgba(255, 255, 255, 0.96) !important;
-  border-right: 1px solid rgba(29, 140, 255, 0.12) !important;
+  background: rgba(255, 255, 255, 0.98) !important;
+  border-right: 1px solid rgba(37, 99, 235, 0.14) !important;
 }
 
 body.light-theme .topbar {
-  background: rgba(255, 255, 255, 0.94) !important;
-  border-bottom: 1px solid rgba(29, 140, 255, 0.12) !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  border-bottom: 1px solid rgba(37, 99, 235, 0.14) !important;
+  backdrop-filter: blur(20px);
 }
 
 body.light-theme .card {
-  background: rgba(255, 255, 255, 0.75) !important;
-  border-color: rgba(29, 140, 255, 0.14) !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(37, 99, 235, 0.16) !important;
 }
 
 body.light-theme select,
 body.light-theme input,
 body.light-theme textarea {
-  background: rgba(255, 255, 255, 0.9) !important;
+  background: rgba(255, 255, 255, 0.98) !important;
   color: #0f172a !important;
-  border-color: rgba(29, 140, 255, 0.2) !important;
+  border-color: rgba(37, 99, 235, 0.22) !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03) !important;
 }
 
 body.light-theme select option {
@@ -756,22 +765,16 @@ body.light-theme select option {
   color: #0f172a !important;
 }
 
-body.light-theme .main-content {
-  background:
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(29,140,255,0.04) 0%, transparent 60%),
-    #f8fafc !important;
-}
-
 body.light-theme .custom-tooltip {
   background: rgba(255, 255, 255, 0.98) !important;
-  border: 1px solid rgba(29, 140, 255, 0.25) !important;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.1) !important;
+  border: 1px solid rgba(37, 99, 235, 0.25) !important;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.12) !important;
   color: #0f172a !important;
 }
 
 body.light-theme .recharts-cartesian-grid-horizontal line,
 body.light-theme .recharts-cartesian-grid-vertical line {
-  stroke: rgba(29, 140, 255, 0.1) !important;
+  stroke: rgba(37, 99, 235, 0.1) !important;
 }
 
 body.light-theme .recharts-text {
@@ -785,43 +788,372 @@ body.light-theme .recharts-legend-item-text {
 body.light-theme .btn-ghost {
   background: transparent;
   color: #334155;
-  border-color: rgba(29, 140, 255, 0.15);
+  border-color: rgba(37, 99, 235, 0.18);
 }
 
 body.light-theme .btn-ghost:hover {
-  background: rgba(29, 140, 255, 0.05);
+  background: rgba(37, 99, 235, 0.08);
   color: #0f172a;
-  border-color: rgba(29, 140, 255, 0.3);
+  border-color: rgba(37, 99, 235, 0.35);
 }
 
 body.light-theme .data-table th {
-  background: rgba(29, 140, 255, 0.03) !important;
-  border-bottom: 1px solid rgba(29, 140, 255, 0.12) !important;
+  background: rgba(37, 99, 235, 0.04) !important;
+  border-bottom: 1px solid rgba(37, 99, 235, 0.14) !important;
+  color: #1e293b !important;
 }
 
 body.light-theme .data-table td {
-  border-bottom: 1px solid rgba(29, 140, 255, 0.06) !important;
+  border-bottom: 1px solid rgba(37, 99, 235, 0.08) !important;
 }
 
 body.light-theme .data-table tr:hover td {
-  background: rgba(29, 140, 255, 0.04) !important;
-}
-
-body.light-theme ::-webkit-scrollbar-track {
-  background: rgba(0,0,0,0.02);
+  background: rgba(37, 99, 235, 0.05) !important;
 }
 
 body.light-theme ::-webkit-scrollbar-thumb {
-  background: rgba(29, 140, 255, 0.15);
+  background: rgba(37, 99, 235, 0.22);
 }
 
 body.light-theme .sidebar-nav-item:hover {
-  background: rgba(139, 92, 246, 0.12) !important;
-  color: #8b5cf6 !important;
+  background: rgba(37, 99, 235, 0.1) !important;
+  color: #2563eb !important;
 }
 
 body.light-theme .sidebar-nav-item:hover svg {
-  color: #8b5cf6 !important;
+  color: #2563eb !important;
+}
+
+
+/* ========== CYBER NEON MATRIX THEME OVERRIDES (SYNTHWAVE CYBERPUNK) ========== */
+body.theme-neon {
+  --bg-main: #030308;
+  --bg-deep: #010105;
+  --bg-panel: rgba(10, 12, 28, 0.92);
+  --bg-panel-hover: rgba(18, 22, 45, 0.96);
+  --bg-sidebar: rgba(6, 8, 20, 0.99);
+  --border-soft: rgba(0, 243, 255, 0.32);
+  --border-medium: rgba(0, 243, 255, 0.55);
+  --border-glow: rgba(0, 243, 255, 0.85);
+  --blue: #00f3ff;
+  --cyan: #00f3ff;
+  --purple: #ff00aa;
+  --green: #39ff14;
+  --amber: #ffd700;
+  --red: #ff0055;
+  --text-main: #ffffff;
+  --text-muted: #99ffff;
+  --text-dim: #00ccb8;
+  --text-primary: #ffffff;
+  --text-secondary: #00f3ff;
+  --shadow-card: 0 4px 30px rgba(0, 243, 255, 0.2), 0 0 20px rgba(255, 0, 170, 0.15);
+  --shadow-hover: 0 8px 45px rgba(0, 243, 255, 0.4), 0 0 30px rgba(255, 0, 170, 0.3);
+
+  background-color: #030308;
+  color: #ffffff;
+}
+
+body.theme-neon .main-content {
+  background:
+    radial-gradient(circle at 10% 20%, rgba(0, 243, 255, 0.14) 0%, transparent 40%),
+    radial-gradient(circle at 90% 80%, rgba(255, 0, 170, 0.14) 0%, transparent 40%),
+    #030308 !important;
+}
+
+body.theme-neon .glass {
+  background: rgba(10, 12, 28, 0.92) !important;
+  border: 1px solid rgba(0, 243, 255, 0.38) !important;
+  box-shadow: 0 0 24px rgba(0, 243, 255, 0.18), inset 0 0 12px rgba(0, 243, 255, 0.05) !important;
+}
+
+body.theme-neon .glass-strong {
+  background: rgba(14, 18, 40, 0.98) !important;
+  border: 1px solid rgba(0, 243, 255, 0.6) !important;
+  box-shadow: 0 0 35px rgba(0, 243, 255, 0.3), inset 0 0 20px rgba(255, 0, 170, 0.1) !important;
+}
+
+body.theme-neon .sidebar {
+  background: rgba(6, 8, 20, 0.99) !important;
+  border-right: 1px solid rgba(0, 243, 255, 0.35) !important;
+  box-shadow: 4px 0 25px rgba(0, 243, 255, 0.1) !important;
+}
+
+body.theme-neon .topbar {
+  background: rgba(6, 8, 20, 0.99) !important;
+  border-bottom: 1px solid rgba(0, 243, 255, 0.35) !important;
+  box-shadow: 0 4px 25px rgba(0, 243, 255, 0.1) !important;
+}
+
+body.theme-neon .card {
+  background: rgba(10, 12, 28, 0.92) !important;
+  border-color: rgba(0, 243, 255, 0.4) !important;
+  box-shadow: 0 0 20px rgba(0, 243, 255, 0.15) !important;
+}
+
+body.theme-neon select,
+body.theme-neon input,
+body.theme-neon textarea {
+  background: rgba(8, 10, 24, 0.95) !important;
+  color: #ffffff !important;
+  border-color: rgba(0, 243, 255, 0.5) !important;
+  box-shadow: 0 0 12px rgba(0, 243, 255, 0.25) !important;
+}
+
+body.theme-neon select option {
+  background: #080a18 !important;
+  color: #00f3ff !important;
+}
+
+body.theme-neon ::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #00f3ff, #ff00aa);
+  box-shadow: 0 0 12px rgba(0, 243, 255, 0.8);
+}
+
+body.theme-neon .sidebar-nav-item:hover {
+  background: rgba(0, 243, 255, 0.18) !important;
+  color: #00f3ff !important;
+  box-shadow: 0 0 15px rgba(0, 243, 255, 0.3) !important;
+}
+
+body.theme-neon .btn-primary {
+  background: linear-gradient(135deg, #00f3ff 0%, #ff00aa 100%) !important;
+  color: #000000 !important;
+  font-weight: 800 !important;
+  border: none !important;
+  box-shadow: 0 0 20px rgba(0, 243, 255, 0.6) !important;
+}
+
+body.theme-neon .data-table th {
+  background: rgba(0, 243, 255, 0.08) !important;
+  border-bottom: 1px solid rgba(0, 243, 255, 0.3) !important;
+  color: #00f3ff !important;
+}
+
+body.theme-neon .data-table td {
+  border-bottom: 1px solid rgba(0, 243, 255, 0.12) !important;
+}
+
+body.theme-neon .data-table tr:hover td {
+  background: rgba(0, 243, 255, 0.1) !important;
+}
+
+
+/* ========== SUNSET TWILIGHT OBSIDIAN THEME OVERRIDES ========== */
+body.theme-sunset {
+  --bg-main: #0d0714;
+  --bg-deep: #07030a;
+  --bg-panel: rgba(28, 16, 40, 0.92);
+  --bg-panel-hover: rgba(38, 22, 54, 0.96);
+  --bg-sidebar: rgba(20, 10, 30, 0.99);
+  --border-soft: rgba(255, 94, 54, 0.32);
+  --border-medium: rgba(255, 94, 54, 0.52);
+  --border-glow: rgba(255, 94, 54, 0.8);
+  --blue: #ff5e36;
+  --cyan: #f59e0b;
+  --purple: #f43f5e;
+  --green: #10b981;
+  --amber: #f59e0b;
+  --red: #f43f5e;
+  --text-main: #fff7ed;
+  --text-muted: #ffedd5;
+  --text-dim: #fb923c;
+  --text-primary: #fff7ed;
+  --text-secondary: #fed7aa;
+  --shadow-card: 0 4px 30px rgba(255, 94, 54, 0.18), 0 0 20px rgba(245, 158, 11, 0.12);
+  --shadow-hover: 0 8px 45px rgba(255, 94, 54, 0.35), 0 0 30px rgba(244, 63, 94, 0.25);
+
+  background-color: #0d0714;
+  color: #fff7ed;
+}
+
+body.theme-sunset .main-content {
+  background:
+    radial-gradient(circle at 20% 0%, rgba(255, 94, 54, 0.16) 0%, transparent 50%),
+    radial-gradient(circle at 80% 100%, rgba(245, 158, 11, 0.12) 0%, transparent 50%),
+    #0d0714 !important;
+}
+
+body.theme-sunset .glass {
+  background: rgba(28, 16, 40, 0.92) !important;
+  border: 1px solid rgba(255, 94, 54, 0.35) !important;
+  box-shadow: 0 0 24px rgba(255, 94, 54, 0.15), inset 0 0 12px rgba(255, 94, 54, 0.05) !important;
+}
+
+body.theme-sunset .glass-strong {
+  background: rgba(36, 20, 52, 0.98) !important;
+  border: 1px solid rgba(255, 94, 54, 0.55) !important;
+  box-shadow: 0 0 35px rgba(255, 94, 54, 0.25) !important;
+}
+
+body.theme-sunset .sidebar {
+  background: rgba(20, 10, 30, 0.99) !important;
+  border-right: 1px solid rgba(255, 94, 54, 0.3) !important;
+}
+
+body.theme-sunset .topbar {
+  background: rgba(20, 10, 30, 0.99) !important;
+  border-bottom: 1px solid rgba(255, 94, 54, 0.3) !important;
+}
+
+body.theme-sunset .card {
+  background: rgba(28, 16, 40, 0.92) !important;
+  border-color: rgba(255, 94, 54, 0.35) !important;
+}
+
+body.theme-sunset select,
+body.theme-sunset input,
+body.theme-sunset textarea {
+  background: rgba(32, 18, 46, 0.95) !important;
+  color: #fff7ed !important;
+  border-color: rgba(255, 94, 54, 0.45) !important;
+  box-shadow: 0 0 12px rgba(255, 94, 54, 0.2) !important;
+}
+
+body.theme-sunset select option {
+  background: #20122e !important;
+  color: #ffedd5 !important;
+}
+
+body.theme-sunset ::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #ff5e36, #f59e0b);
+  box-shadow: 0 0 10px rgba(255, 94, 54, 0.6);
+}
+
+body.theme-sunset .sidebar-nav-item:hover {
+  background: rgba(255, 94, 54, 0.18) !important;
+  color: #ff7849 !important;
+  box-shadow: 0 0 15px rgba(255, 94, 54, 0.25) !important;
+}
+
+body.theme-sunset .btn-primary {
+  background: linear-gradient(135deg, #ff5e36 0%, #f59e0b 100%) !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  border: none !important;
+  box-shadow: 0 0 20px rgba(255, 94, 54, 0.5) !important;
+}
+
+body.theme-sunset .data-table th {
+  background: rgba(255, 94, 54, 0.08) !important;
+  border-bottom: 1px solid rgba(255, 94, 54, 0.3) !important;
+  color: #ff8c69 !important;
+}
+
+body.theme-sunset .data-table td {
+  border-bottom: 1px solid rgba(255, 94, 54, 0.12) !important;
+}
+
+body.theme-sunset .data-table tr:hover td {
+  background: rgba(255, 94, 54, 0.1) !important;
+}
+
+
+/* ========== QUANTUM EMERALD BIO-GRID OVERRIDES ========== */
+body.theme-emerald {
+  --bg-main: #02140d;
+  --bg-deep: #010a06;
+  --bg-panel: rgba(6, 38, 26, 0.92);
+  --bg-panel-hover: rgba(10, 52, 36, 0.96);
+  --bg-sidebar: rgba(4, 28, 19, 0.99);
+  --border-soft: rgba(0, 255, 157, 0.32);
+  --border-medium: rgba(0, 255, 157, 0.52);
+  --border-glow: rgba(0, 255, 157, 0.8);
+  --blue: #00ff9d;
+  --cyan: #34d399;
+  --purple: #10b981;
+  --green: #00ff9d;
+  --amber: #f59e0b;
+  --red: #f43f5e;
+  --text-main: #ecfdf5;
+  --text-muted: #d1fae5;
+  --text-dim: #34d399;
+  --text-primary: #ecfdf5;
+  --text-secondary: #a7f3d0;
+  --shadow-card: 0 4px 30px rgba(0, 255, 157, 0.18), 0 0 20px rgba(16, 185, 129, 0.12);
+  --shadow-hover: 0 8px 45px rgba(0, 255, 157, 0.35), 0 0 30px rgba(52, 211, 153, 0.25);
+
+  background-color: #02140d;
+  color: #ecfdf5;
+}
+
+body.theme-emerald .main-content {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(0, 255, 157, 0.15) 0%, transparent 60%),
+    #02140d !important;
+}
+
+body.theme-emerald .glass {
+  background: rgba(6, 38, 26, 0.92) !important;
+  border: 1px solid rgba(0, 255, 157, 0.35) !important;
+  box-shadow: 0 0 24px rgba(0, 255, 157, 0.15), inset 0 0 12px rgba(0, 255, 157, 0.05) !important;
+}
+
+body.theme-emerald .glass-strong {
+  background: rgba(8, 48, 32, 0.98) !important;
+  border: 1px solid rgba(0, 255, 157, 0.55) !important;
+  box-shadow: 0 0 35px rgba(0, 255, 157, 0.25) !important;
+}
+
+body.theme-emerald .sidebar {
+  background: rgba(4, 28, 19, 0.99) !important;
+  border-right: 1px solid rgba(0, 255, 157, 0.3) !important;
+}
+
+body.theme-emerald .topbar {
+  background: rgba(4, 28, 19, 0.99) !important;
+  border-bottom: 1px solid rgba(0, 255, 157, 0.3) !important;
+}
+
+body.theme-emerald .card {
+  background: rgba(6, 38, 26, 0.92) !important;
+  border-color: rgba(0, 255, 157, 0.35) !important;
+}
+
+body.theme-emerald select,
+body.theme-emerald input,
+body.theme-emerald textarea {
+  background: rgba(8, 44, 30, 0.95) !important;
+  color: #ecfdf5 !important;
+  border-color: rgba(0, 255, 157, 0.45) !important;
+  box-shadow: 0 0 12px rgba(0, 255, 157, 0.2) !important;
+}
+
+body.theme-emerald select option {
+  background: #062c1e !important;
+  color: #00ff9d !important;
+}
+
+body.theme-emerald ::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #00ff9d, #10b981);
+  box-shadow: 0 0 10px rgba(0, 255, 157, 0.6);
+}
+
+body.theme-emerald .sidebar-nav-item:hover {
+  background: rgba(0, 255, 157, 0.18) !important;
+  color: #00ff9d !important;
+  box-shadow: 0 0 15px rgba(0, 255, 157, 0.25) !important;
+}
+
+body.theme-emerald .btn-primary {
+  background: linear-gradient(135deg, #00ff9d 0%, #10b981 100%) !important;
+  color: #02140d !important;
+  font-weight: 800 !important;
+  border: none !important;
+  box-shadow: 0 0 20px rgba(0, 255, 157, 0.5) !important;
+}
+
+body.theme-emerald .data-table th {
+  background: rgba(0, 255, 157, 0.08) !important;
+  border-bottom: 1px solid rgba(0, 255, 157, 0.3) !important;
+  color: #00ff9d !important;
+}
+
+body.theme-emerald .data-table td {
+  border-bottom: 1px solid rgba(0, 255, 157, 0.12) !important;
+}
+
+body.theme-emerald .data-table tr:hover td {
+  background: rgba(0, 255, 157, 0.1) !important;
 }
 
 

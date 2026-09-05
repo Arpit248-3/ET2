@@ -7,6 +7,7 @@ import PageHeader from '../../components/ui/PageHeader.jsx';
 import { useToast } from '../../components/ui/Toast.jsx';
 import { fetchSettings, updateSettings } from '../../services/api.js';
 import { useScenario } from '../../context/ScenarioContext.jsx';
+import { useTheme } from '../../context/ThemeContext.jsx';
 
 function Toggle({ value, onChange }) {
   return (
@@ -37,6 +38,7 @@ export default function SettingsPage() {
   const navigate = useNavigate();
   const { backendOnline } = useScenario();
   const { addToast } = useToast();
+  const { theme, setTheme, themes } = useTheme();
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('notifications');
@@ -305,6 +307,100 @@ export default function SettingsPage() {
               <div style={{ fontSize: 11.5, color: 'var(--text-dim)', marginTop: 2 }}>{currentSection.desc}</div>
             </div>
           </div>
+
+          {/* Theme Selection Grid for Display Tab */}
+          {activeTab === 'display' && (
+            <div style={{ marginBottom: 28, paddingBottom: 24, borderBottom: '1px solid var(--border-soft)' }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ letterSpacing: '0.04em' }}>PLATFORM COLORED AESTHETIC PALETTES</span>
+                <span style={{ fontSize: 9.5, padding: '3px 9px', borderRadius: 12, background: 'linear-gradient(135deg, var(--blue), var(--purple))', color: '#fff', fontWeight: 800 }}>
+                  5 DYNAMIC THEMES
+                </span>
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 18 }}>
+                Select from high-visibility aesthetic command center palettes. Theme choices switch instantly across all command dashboards, analytics screens, header bars, and login gateways.
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
+                {themes.map(t => {
+                  const isActive = theme === t.id;
+                  return (
+                    <div
+                      key={t.id}
+                      onClick={() => {
+                        setTheme(t.id);
+                        addToast(`Applied ${t.name}`, 'info');
+                      }}
+                      style={{
+                        padding: '16px',
+                        borderRadius: 14,
+                        border: isActive ? `2px solid ${t.colorPrimary}` : '1px solid var(--border-soft)',
+                        background: isActive ? `${t.colorPrimary}14` : 'rgba(255,255,255,0.02)',
+                        boxShadow: isActive ? `0 0 24px ${t.colorGlow || 'rgba(0,0,0,0.2)'}` : '0 4px 12px rgba(0,0,0,0.1)',
+                        cursor: 'pointer',
+                        transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                        position: 'relative',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isActive) {
+                          e.currentTarget.style.borderColor = t.colorPrimary;
+                          e.currentTarget.style.transform = 'translateY(-3px)';
+                          e.currentTarget.style.boxShadow = `0 8px 24px ${t.colorPrimary}25`;
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isActive) {
+                          e.currentTarget.style.borderColor = 'var(--border-soft)';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+                        }
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                          <span style={{ fontSize: 24, filter: `drop-shadow(0 0 8px ${t.colorPrimary})` }}>{t.icon}</span>
+                          <span style={{ fontSize: 8.5, fontWeight: 800, padding: '2px 7px', borderRadius: 4, background: t.colorPrimary, color: t.id === 'light' ? '#fff' : '#000', letterSpacing: '0.04em' }}>
+                            {t.badge}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-main)', marginBottom: 2 }}>
+                          {t.name}
+                        </div>
+                        <div style={{ fontSize: 10, fontWeight: 600, color: t.colorPrimary, marginBottom: 8 }}>
+                          {t.tagline}
+                        </div>
+                        <div style={{ fontSize: 10.5, color: 'var(--text-muted)', lineHeight: 1.45, marginBottom: 14 }}>
+                          {t.desc}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                        {/* Swatches preview */}
+                        <div style={{ display: 'flex', gap: 5, alignItems: 'center', padding: '3px 7px', borderRadius: 12, background: 'rgba(0,0,0,0.25)' }}>
+                          <span style={{ width: 10, height: 10, borderRadius: '50%', background: t.colorBg, border: '1px solid rgba(255,255,255,0.3)' }} title="Canvas BG" />
+                          <span style={{ width: 10, height: 10, borderRadius: '50%', background: t.colorPrimary, boxShadow: `0 0 6px ${t.colorPrimary}` }} title="Primary Accent" />
+                          <span style={{ width: 10, height: 10, borderRadius: '50%', background: t.colorAccent }} title="Secondary Accent" />
+                        </div>
+
+                        {isActive ? (
+                          <div style={{ fontSize: 10.5, fontWeight: 800, color: t.colorPrimary, display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <Check size={14} /> ACTIVE
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-dim)' }}>
+                            Select →
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Setting Items */}
           <div style={{ display: 'flex', flexDirection: 'column' }}>

@@ -4,6 +4,7 @@ import { ToastProvider } from './components/ui/Toast.jsx';
 import { ScenarioProvider } from './context/ScenarioContext.jsx';
 import { PipelineProvider } from './context/PipelineContext.jsx';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
+import { ThemeProvider } from './context/ThemeContext.jsx';
 import { CallProvider } from './context/CallContext.jsx';
 
 // Auth Pages
@@ -116,18 +117,20 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <ToastProvider>
-        <CallProvider>
-          <BrowserRouter>
-            <PipelineProvider>
-              <ScenarioProvider>
-                <AppRoutes />
-              </ScenarioProvider>
-            </PipelineProvider>
-          </BrowserRouter>
-        </CallProvider>
-      </ToastProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <ToastProvider>
+          <CallProvider>
+            <BrowserRouter>
+              <PipelineProvider>
+                <ScenarioProvider>
+                  <AppRoutes />
+                </ScenarioProvider>
+              </PipelineProvider>
+            </BrowserRouter>
+          </CallProvider>
+        </ToastProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

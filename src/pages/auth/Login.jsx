@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
+import ThemeSwitcher from '../../components/ui/ThemeSwitcher.jsx';
 
 const BACKEND = 'http://localhost:8000/api/auth';
 
@@ -361,6 +362,37 @@ export default function Login() {
       `}</style>
 
       <div className="ln-page">
+        {/* Top Header Bar with Theme Switcher */}
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 56,
+          padding: '0 24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          zIndex: 50,
+          background: 'rgba(3, 7, 18, 0.4)',
+          backdropFilter: 'blur(16px)',
+          borderBottom: '1px solid var(--border-soft)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 18 }}>⚡</span>
+            <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 13, fontWeight: 800, color: 'var(--text-main)', letterSpacing: '0.12em' }}>
+              URJANETRA AI
+            </span>
+            <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 4, background: 'rgba(29, 140, 255, 0.15)', color: 'var(--blue)', fontWeight: 700, letterSpacing: '0.05em' }}>
+              NEMC CLASSIFIED
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <ThemeSwitcher />
+          </div>
+        </div>
+
         <div className="ln-bg-grid" />
         <div className="ln-glow1" />
         <div className="ln-glow2" />
