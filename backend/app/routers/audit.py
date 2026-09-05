@@ -15,6 +15,8 @@ from app.schemas import AuditLogsResponse, AuditLogEntry
 router = APIRouter()
 
 
+from app.core.audit_chain import record_audit_event
+
 def create_audit_entry(
     db: Session,
     user: str,
@@ -24,12 +26,11 @@ def create_audit_entry(
     details: Optional[Dict[str, Any]] = None,
 ):
     """
-    Create an immutable audit log entry.
+    Create an immutable, cryptographically chained audit log entry.
     Called by all major routers after significant actions.
     """
-    event_id = f"EVT-{uuid.uuid4().hex[:8].upper()}"
-    entry = AuditLog(
-        event_id=event_id,
+    return record_audit_event(
+        db=db,
         user=user,
         action=action,
         module=module,
@@ -37,9 +38,6 @@ def create_audit_entry(
         event_type=event_type,
         details=details,
     )
-    db.add(entry)
-    db.commit()
-    return entry
 
 
 @router.get("/audit-logs", response_model=AuditLogsResponse)

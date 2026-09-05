@@ -16,7 +16,7 @@ class ScenarioState(Base):
 
 
 class AuditLog(Base):
-    """Immutable audit trail for all major actions."""
+    """Tamper-evident audit trail with cryptographic hash chaining."""
     __tablename__ = "audit_logs"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -28,6 +28,9 @@ class AuditLog(Base):
     status = Column(String, nullable=False, default="COMPLETED")
     event_type = Column(String, nullable=False)  # AI, USER, SYSTEM, SECURITY
     details = Column(JSON, nullable=True)
+    previous_hash = Column(String, nullable=True)
+    current_hash = Column(String, nullable=True)
+
 
 
 class Decision(Base):
@@ -177,5 +180,56 @@ class HelpTicket(Base):
     status = Column(String, nullable=False, default="OPEN")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class AgentRun(Base):
+    """Persistent execution record of an LLM agent orchestration mission."""
+    __tablename__ = "agent_runs"
+
+    id = Column(String, primary_key=True, index=True)
+    scenario_id = Column(String, nullable=False, index=True)
+    mission = Column(Text, nullable=False)
+    user_id = Column(String, default="admin_system", index=True)
+    status = Column(String, nullable=False, default="RUNNING")  # RUNNING, AWAITING_APPROVAL, APPROVED, REJECTED, COMPLETED, FAILED, SAFE_MODE
+    started_at = Column(DateTime(timezone=True), server_default=func.now())
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    current_step = Column(String, nullable=True)
+    iteration = Column(Integer, default=1)
+    max_iterations = Column(Integer, default=3)
+    priority_weights = Column(JSON, nullable=True)
+    plan_v1 = Column(JSON, nullable=True)
+    redteam_critique = Column(JSON, nullable=True)
+    replan_reason = Column(Text, nullable=True)
+    plan_v2 = Column(JSON, nullable=True)
+    policy_evaluation = Column(JSON, nullable=True)
+    requires_human_approval = Column(Boolean, default=False)
+    approval_status = Column(String, default="PENDING")  # PENDING, APPROVED, REJECTED, NOT_REQUIRED
+    approved_by = Column(String, nullable=True)
+    approval_timestamp = Column(DateTime(timezone=True), nullable=True)
+    final_decision = Column(JSON, nullable=True)
+    safe_mode = Column(Boolean, default=False)
+    audit_id = Column(String, nullable=True)
+    model_used = Column(String, nullable=True)
+    provider = Column(String, nullable=True)
+
+
+class AgentStep(Base):
+    """Fine-grained, persistent step trace within an AgentRun."""
+    __tablename__ = "agent_steps"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    run_id = Column(String, nullable=False, index=True)
+    sequence = Column(Integer, nullable=False)
+    agent_name = Column(String, nullable=False, default="Orchestrator")
+    action = Column(String, nullable=False)  # UNDERSTAND, TOOL_CALL, OBSERVATION, SYNTHESIZE_PLAN, RED_TEAM_CRITIQUE, REPLAN, POLICY_CHECK, APPROVAL_REQUEST, EXECUTE_DECISION
+    tool_name = Column(String, nullable=True)
+    input_json = Column(JSON, nullable=True)
+    output_json = Column(JSON, nullable=True)
+    status = Column(String, nullable=False, default="SUCCESS")  # SUCCESS, FAILED, FALLBACK, RUNNING
+    error = Column(Text, nullable=True)
+    latency_ms = Column(Float, default=0.0)
+    iteration = Column(Integer, default=1)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
 
 

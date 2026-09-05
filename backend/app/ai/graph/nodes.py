@@ -147,8 +147,8 @@ def prompt_builder_node(state: CopilotGraphState) -> CopilotGraphState:
 
     system_prompt = (
         "You are UrjaNetra AI Copilot — India's Energy Resilience Intelligence Agent.\n"
-        "Ground all reasoning STRICTLY in the provided PIPELINE STATE and RAG DOCUMENTS.\n"
-        "Do NOT invent facts, numbers, or ungrounded policies.\n\n"
+        "Answer ONLY using the supplied PIPELINE CONTEXT and RAG DOCUMENTS.\n"
+        "NEVER invent numbers, facts, or ungrounded policies. If evidence is lacking, state 'Insufficient evidence'.\n\n"
         "Return a valid JSON object matching this schema:\n"
         "{\n"
         '  "summary": "Executive summary paragraph",\n'

@@ -20,7 +20,7 @@ class PromptRecord(BaseModel):
     author: str = "UrjaNetra AI Core Team"
     description: str = ""
     last_modified: str = "2026-07-20"
-    supported_models: List[str] = Field(default_factory=lambda: ["anthropic/claude-3.5-sonnet", "openai/gpt-4o"])
+    supported_models: List[str] = Field(default_factory=lambda: ["meta-llama/llama-3.3-70b-instruct", "qwen/qwen-2.5-72b-instruct"])
     system_prompt: str = ""
 
 

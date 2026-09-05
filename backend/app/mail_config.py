@@ -14,16 +14,19 @@ def send_email_safe(subject: str, recipients: list[str], body: str):
     """
     logger.info(f"[MAIL OUTBOX] Preparing email to {recipients} | Subject: {subject}")
 
-    username = settings.MAIL_USERNAME
-    password = settings.MAIL_PASSWORD
-    sender = settings.MAIL_FROM or username
+    username = (settings.MAIL_USERNAME or "").strip()
+    password = (settings.MAIL_PASSWORD or "").replace(" ", "").strip()
+    sender = (settings.MAIL_FROM or username).strip()
 
-    # Check if real credentials are set (not default placeholders)
+    # Check if real credentials are set (not default placeholders or rotated tokens)
     is_configured = (
-        username and 
-        password and 
+        bool(username) and 
+        bool(password) and 
         "admin@urjanetra" not in username and 
-        password != "secret"
+        password != "secret" and
+        not password.startswith("ROTATED") and
+        not password.startswith("PLACEHOLDER") and
+        "example" not in username
     )
 
     if not is_configured:

@@ -14,6 +14,7 @@ import { usePipeline } from '../../context/PipelineContext.jsx';
 import useApi from '../../hooks/useApi.js';
 import { recordDecision, generateBrief, fetchSupplyChainTwin } from '../../services/api.js';
 import CrisisUploadModal from '../../components/ui/CrisisUploadModal.jsx';
+import AegisAgentPanel from '../../components/dashboard/AegisAgentPanel.jsx';
 
 
 const CustomTooltip = ({ active, payload, label }) => {
@@ -347,6 +348,12 @@ export default function CommandCenter() {
         <MetricCard label="SPR Coverage" value={String(displaySPR)} unit="days" color="blue" icon={Shield} delta={-4} />
         <MetricCard label="Active Sanctions" value={String(displaySanctions)} color="purple" icon={Droplets} subtitle="On 4 suppliers" />
       </div>
+
+      {/* Aegis Autonomous Crisis Agent Orchestrator Panel */}
+      <AegisAgentPanel 
+        activeScenarioId={activeScenario?.id || 'hormuz_closure'} 
+        onDecisionExecuted={refreshPipeline} 
+      />
 
       {/* Map + Right panel */}
       <div className="responsive-map-grid">

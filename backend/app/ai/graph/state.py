@@ -3,6 +3,7 @@ LangGraph State Schema for AI Copilot Orchestration.
 Tracks state through intent classification, selective context collection, RAG document retrieval,
 prompt assembly, OpenRouter execution, response validation, and fallback routing.
 """
+import os
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
@@ -23,4 +24,4 @@ class CopilotGraphState(BaseModel):
     fallback_used: bool = False
     errors: List[str] = Field(default_factory=list)
     latency_ms: float = 0.0
-    selected_model: str = "anthropic/claude-3.5-sonnet"
+    selected_model: str = Field(default_factory=lambda: os.getenv("OPENROUTER_MODEL_COPILOT", "meta-llama/llama-3.3-70b-instruct"))

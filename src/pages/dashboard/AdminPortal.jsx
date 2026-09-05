@@ -22,7 +22,7 @@ export default function AdminPortal() {
   const [filter, setFilter] = useState('ALL');
 
   // Verify Admin Access
-  const isAdmin = currentUser?.email === 'arpitjham1@gmail.com' || currentUser?.role === 'System Administrator';
+  const isAdmin = Boolean(currentUser?.is_admin || currentUser?.email === 'arpitjham23@gmail.com' || currentUser?.role === 'System Administrator');
 
   const fetchTickets = async () => {
     setLoading(true);

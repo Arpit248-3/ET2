@@ -20,7 +20,10 @@ logger = logging.getLogger("urjanetra.help")
 
 router = APIRouter()
 
-ADMIN_EMAIL = "arpitjham1@gmail.com"
+import os
+from app.config import settings
+
+ADMIN_EMAIL = getattr(settings, "ADMIN_EMAIL", os.getenv("ADMIN_EMAIL", "arpitjham23@gmail.com"))
 
 
 @router.post("/help/tickets")

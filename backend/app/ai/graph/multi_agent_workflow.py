@@ -3,6 +3,7 @@ Multi-Agent Orchestrator Workflow.
 Orchestrates Agent Selection, Selective Context Extraction, RAG Retrieval, Execution,
 Validation, and Chain of Evidence Embedding.
 """
+import os
 import uuid
 import logging
 from typing import Dict, Any, Optional
@@ -77,7 +78,7 @@ class MultiAgentWorkflow:
             "engine_outputs_used": list(pipeline_dict.keys()),
             "retrieved_documents": [{"source": d["source"], "title": d["title"]} for d in rag_docs],
             "prompt_version": "1.0.0",
-            "model_used": "anthropic/claude-3.5-sonnet",
+            "model_used": os.getenv("OPENROUTER_MODEL_COPILOT", os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct")),
             "validation_status": "PASSED"
         }
 

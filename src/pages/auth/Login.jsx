@@ -33,7 +33,7 @@ export default function Login() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      const target = (currentUser?.is_admin || currentUser?.email === 'arpitjham1@gmail.com' || currentUser?.role === 'System Administrator') ? '/admin' : '/command-center';
+      const target = (currentUser?.is_admin || currentUser?.email === 'arpitjham23@gmail.com' || currentUser?.role === 'System Administrator') ? '/admin' : '/command-center';
       navigate(target, { replace: true });
     }
   }, [isAuthenticated, currentUser, navigate]);
@@ -117,7 +117,7 @@ export default function Login() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || 'MFA verification failed');
       setSuccess(true);
-      const targetPage = (data.user?.is_admin || data.user?.email === 'arpitjham1@gmail.com' || data.user?.role === 'System Administrator') ? '/admin' : '/command-center';
+      const targetPage = (data.user?.is_admin || data.user?.email === 'arpitjham23@gmail.com' || data.user?.role === 'System Administrator') ? '/admin' : '/command-center';
       setTimeout(() => { login(data.token, data.user); navigate(targetPage, { replace: true }); }, 1500);
     } catch (err) { setError(err.message || 'Invalid code.'); }
     finally { setLoading(false); }
@@ -470,41 +470,20 @@ export default function Login() {
                 </button>
               </form>
 
-              {/* Highlighted Admin Credentials Hint */}
+              {/* Security Advisory Note */}
               <div style={{
                 marginTop: 12,
                 padding: '8px 10px',
-                background: 'rgba(168,85,247,0.08)',
-                border: '1px dashed rgba(168,85,247,0.35)',
+                background: 'rgba(59,130,246,0.06)',
+                border: '1px solid rgba(59,130,246,0.2)',
                 borderRadius: 8,
                 fontSize: 10.5,
-                color: '#c084fc',
+                color: '#93c5fd',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'space-between',
                 gap: 6
               }}>
-                <span>👑 <strong>Admin:</strong> <code style={{ color: '#fff', background: 'rgba(0,0,0,0.3)', padding: '1px 4px', borderRadius: 3 }}>arpitjham1@gmail.com</code> | Pass: <code style={{ color: '#fff', background: 'rgba(0,0,0,0.3)', padding: '1px 4px', borderRadius: 3 }}>12345678</code></span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setForm({ email: 'arpitjham1@gmail.com', password: '12345678', role: 'System Administrator' });
-                    setSelectedRole(ROLES[0]);
-                  }}
-                  style={{
-                    background: 'rgba(168,85,247,0.25)',
-                    border: '1px solid rgba(168,85,247,0.5)',
-                    color: '#fff',
-                    padding: '3px 8px',
-                    borderRadius: 5,
-                    fontSize: 9.5,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap'
-                  }}
-                >
-                  Fill Admin ⚡
-                </button>
+                <span>🛡️ <strong>Classified Access:</strong> Authorized personnel only. Access credentials governed by server environment policy.</span>
               </div>
 
               <div className="ln-divider">

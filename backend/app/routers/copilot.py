@@ -61,22 +61,41 @@ def _build_executive_brief(graph_state) -> Dict[str, Any]:
 
     if is_severe_disruption:
         severity = max(85, int(risk_meta.get("overall_score", 88)))
-        oil_price_val = f"+${round(18.4 + (disruption_days * 0.12), 1)}/bbl (${round(brent_base + 18.4 + (disruption_days * 0.12), 1)}/bbl)"
-        import_bill_val = f"+₹{round(24800 * (disruption_days / 30)):,.0f} Cr"
-        gdp_val = f"-₹{round(18500 * (disruption_days / 30)):,.0f} Cr"
-        inflation_val = f"+{round(1.8 + (disruption_days * 0.015), 2)}%"
-        supply_gap_val = f"3.2 mbbl/day ({round(3.2 * disruption_days, 1)} mbbl over {disruption_days} days)"
-        spr_cover_val = "26% (26 days cover remaining)"
-        
-        summary = f"Strait of Hormuz Disruption Analysis ({disruption_days}-Day Window): High supply threat flagged (Severity: {severity}/100 — CRITICAL). Physical transit through the Strait is restricted (38% of Indian crude imports impacted). Cumulative {disruption_days}-day supply deficit calculated at {round(3.2 * disruption_days, 1)} Million barrels."
-        
+        from app.core.economic_engine import EconomicEngine
+        from app.core import scenario_engine
+
+        scen = scenario_engine.get_scenario("hormuz_closure") or {}
+        econ_engine = EconomicEngine()
+        severity_mult = max(0.5, min(2.5, disruption_days / 30.0))
+        econ_res = econ_engine.calculate(scenario=scen, severity_multiplier=severity_mult)
+        headline = econ_res.get("headline", {})
+
+        brent_shock = float(headline.get("crude_price_shock_usd") or scen.get("brent_shock_usd") or 18.5)
+        fiscal_cr = float(headline.get("fiscal_burden_inr_cr") or 14500.0)
+        gdp_drag = float(headline.get("gdp_growth_drag_pp") or 0.39)
+        cpi_impact = float(headline.get("inflation_impact_pp") or 0.86)
+        daily_gap = float(scen.get("supply_gap_mbbl_day") or 2.4)
+
+        oil_price_val = f"+${brent_shock:.1f}/bbl (${round(brent_base + brent_shock, 1)}/bbl)"
+        import_bill_val = f"+₹{fiscal_cr:,.0f} Cr"
+        gdp_val = f"-{gdp_drag:.2f}% GDP Drag"
+        inflation_val = f"+{cpi_impact:.2f}%"
+        supply_gap_val = f"{daily_gap} mbbl/day ({round(daily_gap * disruption_days, 1)} mbbl over {disruption_days} days)"
+
+        spr_sites = scenario_engine.get_spr_sites()
+        total_stock = sum(s.get("current_stock_mbbl", 0) for s in spr_sites)
+        cover_days = int(total_stock / daily_gap) if daily_gap > 0 else 45
+        spr_cover_val = f"{cover_days} days cover ({total_stock:.1f}M bbl total reserve)"
+
+        summary = f"Strait of Hormuz Disruption Analysis ({disruption_days}-Day Window): High supply threat flagged (Severity: {severity}/100 — CRITICAL). Physical transit through the Strait is restricted (38% of Indian crude imports impacted). Cumulative {disruption_days}-day supply deficit calculated at {round(daily_gap * disruption_days, 1)} Million barrels."
+
         immediate_effects = [
-            f"1. Supply Deficit: Cumulative gap of {round(3.2 * disruption_days, 1)}M bbl ({disruption_days}-day horizon at 3.2M bbl/day deficit).",
-            f"2. Strategic Release: Phase-1 SPR release covers first 26 days of national demand (83.2M bbl across Visakhapatnam, Padur, and Mangaluru).",
+            f"1. Supply Deficit: Cumulative gap of {round(daily_gap * disruption_days, 1)}M bbl ({disruption_days}-day horizon at {daily_gap}M bbl/day deficit).",
+            f"2. Strategic Release: Phase-1 SPR release covers first {min(cover_days, 26)} days of national demand across Padur, Mangaluru, and Visakhapatnam.",
             f"3. Spot Procurement Bridge: Secondary {max(0, disruption_days - 26)} days covered by West Africa (Bonny Light) and Brazil (Tupi) spot cargoes via Cape of Good Hope.",
-            f"4. Landed Cost Shock: Brent crude surge ({oil_price_val}) increases national import bill by {import_bill_val}.",
+            f"4. Landed Cost Shock: Brent crude surge ({oil_price_val}) increases national fiscal burden by {import_bill_val}.",
         ]
-        
+
         economic_impact = {
             "oil_price": oil_price_val,
             "import_bill": import_bill_val,
@@ -85,7 +104,7 @@ def _build_executive_brief(graph_state) -> Dict[str, Any]:
             "supply_gap": supply_gap_val,
             "spr_coverage": spr_cover_val,
         }
-        
+
         supply_chain = {
             "Strait of Hormuz": "BLOCKED / NAVAL DRILLS ACTIVE (0% transit)",
             "SPR Cavern Allocation": "Phased Release Active – Visakhapatnam 1.33 MT, Mangaluru 1.50 MT, Padur 2.50 MT",
@@ -93,32 +112,32 @@ def _build_executive_brief(graph_state) -> Dict[str, Any]:
             "Refinery Slate Compatibility": "Jamnagar & Paradip operating at 96% capacity (Heavy-sour blend)",
             "Offshore Transit Stocks": "14.2M bbl in commercial transit via Atlantic corridor",
         }
-        
+
         recommendations = [
             f"Authorize Level 5 PMO Executive Escalation for emergency release of 3.2 MT Strategic Reserve.",
             f"Contract {max(0, disruption_days - 26)} days of West African (Bonny Light) and Brazilian (Tupi) spot cargoes to bridge remaining gap.",
             f"Issue Cape of Good Hope transit directive to all IOCL, BPCL, and HPCL VLCC charterers.",
             f"Instruct coastal refineries (Jamnagar, Paradip) to execute heavy-sour slate pre-blending.",
         ]
-        
+
         alternatives = [
             "West Africa (Bonny Light / Forcados) – 88% feasibility (Cape of Good Hope bypasses Hormuz)",
             "Brazil (Petrobras Tupi) – 82% feasibility (Atlantic transit corridor)",
             "US Gulf Coast (WTI Midland) – 76% feasibility (Long-haul spot cargo bridge)",
         ]
-        
+
         compliance = {
             "sanctions_check": "Cleared (G7 Price Cap compliant)",
             "insurance_status": "Valid – P&I Club Emergency Endorsement",
             "route_restriction": "Strait of Hormuz Restricted – Cape of Good Hope Active",
             "risk_assessment": "Low Sanctions Exposure",
         }
-        
+
         evidence_list = [
-            f"[NEMC Maritime Feed] Strait of Hormuz closure active; 38% crude import channel blocked ({disruption_days}-day scenario).",
-            "[ISPRL Cavern Telemetry] Visakhapatnam, Padur & Mangaluru caverns operational for 2.4M bbl/day release.",
-            f"[Platts Oil Index] Brent crude benchmark surge ({oil_price_val}) reflects geopolitical risk premium.",
-            "[DG Shipping Advisory] Cape of Good Hope rerouting active for all Indian crude tankers.",
+            f"[Strategic Scenario Model] Strait of Hormuz closure active; 38% crude import channel blocked ({disruption_days}-day scenario).",
+            "[ISPRL Storage Model] Visakhapatnam, Padur & Mangaluru caverns operational for 2.4M bbl/day release.",
+            f"[Deterministic Economic Shock Engine] Brent crude benchmark surge ({oil_price_val}) reflects geopolitical risk premium.",
+            "[DG Shipping Advisory (Synthetic)] Cape of Good Hope rerouting active for all Indian crude tankers.",
         ]
         
         decision_trace = [

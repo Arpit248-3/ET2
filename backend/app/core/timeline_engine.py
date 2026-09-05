@@ -1,9 +1,14 @@
 from typing import Any
 from app.core.scenario_engine import get_scenario
-from app.core.risk_engine import calculate_risk
 from app.pipeline.models import TimelineSection, TimelineEvent
 
 def execute(state: Any, context: Any) -> Any:
+    """
+    Execute Timeline Engine.
+    Resolves scenario timeline events with dynamically calculated step risk scores.
+    """
+    from app.core.risk_engine import calculate_risk
+
     """
     Execute Timeline Engine.
     Resolves scenario timeline events with dynamically calculated step risk scores.

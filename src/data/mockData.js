@@ -150,12 +150,12 @@ export const notificationsData = [
 ];
 
 export const dataSourcesData = [
-  { name: 'Reuters Energy Feed', type: 'News', status: 'LIVE', latency: '< 1s', records: '24,891', quality: 98 },
-  { name: 'Lloyd\'s Maritime Database', type: 'Shipping', status: 'LIVE', latency: '< 2s', records: '8,234', quality: 96 },
-  { name: 'Sentinel-2 Satellite', type: 'Satellite', status: 'LIVE', latency: '< 5min', records: '1,204', quality: 94 },
-  { name: 'Bloomberg Terminal', type: 'Commodity', status: 'LIVE', latency: '< 100ms', records: '156,400', quality: 99 },
-  { name: 'OFAC Sanctions List', type: 'Government', status: 'LIVE', latency: '< 1min', records: '2,841', quality: 100 },
-  { name: 'IMO Ship Registry', type: 'Shipping', status: 'DELAYED', latency: '5 min', records: '12,500', quality: 87 },
+  { name: 'Reuters Energy Feed (Adapter)', type: 'News', status: 'ADAPTER-READY / SYNTHETIC', latency: '< 1s', records: '24,891', quality: 98 },
+  { name: 'Lloyd\'s Maritime Database (Adapter)', type: 'Shipping', status: 'ADAPTER-READY / SYNTHETIC', latency: '< 2s', records: '8,234', quality: 96 },
+  { name: 'Sentinel-2 Satellite (Adapter)', type: 'Satellite', status: 'ADAPTER-READY / SYNTHETIC', latency: '< 5min', records: '1,204', quality: 94 },
+  { name: 'Bloomberg Terminal (Adapter)', type: 'Commodity', status: 'ADAPTER-READY / SYNTHETIC', latency: '< 100ms', records: '156,400', quality: 99 },
+  { name: 'OFAC Sanctions List (Reference)', type: 'Government', status: 'SYNTHETIC REFERENCE DATA', latency: '< 1min', records: '2,841', quality: 100 },
+  { name: 'IMO Ship Registry (Reference)', type: 'Shipping', status: 'SYNTHETIC REFERENCE DATA', latency: '5 min', records: '12,500', quality: 87 },
 ];
 
 export const chatHistory = [

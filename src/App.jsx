@@ -48,7 +48,7 @@ function ProtectedRoute({ children, adminOnly = false }) {
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
-  const isAdmin = currentUser?.is_admin || currentUser?.email === 'arpitjham1@gmail.com' || currentUser?.role === 'System Administrator';
+  const isAdmin = Boolean(currentUser?.is_admin || currentUser?.email === 'arpitjham23@gmail.com' || currentUser?.role === 'System Administrator');
   
   if (adminOnly && !isAdmin) {
     return <Navigate to="/command-center" replace />;
@@ -59,7 +59,7 @@ function ProtectedRoute({ children, adminOnly = false }) {
 
 function AppRoutes() {
   const { isAuthenticated, currentUser } = useAuth();
-  const isAdmin = currentUser?.is_admin || currentUser?.email === 'arpitjham1@gmail.com' || currentUser?.role === 'System Administrator';
+  const isAdmin = Boolean(currentUser?.is_admin || currentUser?.email === 'arpitjham23@gmail.com' || currentUser?.role === 'System Administrator');
   const defaultPage = isAdmin ? "/admin" : "/command-center";
 
   React.useEffect(() => {

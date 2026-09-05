@@ -40,10 +40,14 @@ def optimize_procurement(
     duration_days: Optional[int] = None,
     exclude_routes: Optional[List[str]] = None,
     max_risk_score: Optional[int] = None,
+    weights: Optional[Dict[str, float]] = None,
+    priority: Optional[str] = None,
     **kwargs
 ) -> Dict[str, Any]:
     """
     Independent procurement optimization calculation.
+    Supports objective priority modes ('speed', 'cost', 'risk', 'balanced')
+    and explicit attribute weighting.
     """
     scenario = get_scenario(scenario_id) if scenario_id else None
     suppliers = get_suppliers()
@@ -51,6 +55,19 @@ def optimize_procurement(
     disrupted_route = scenario.get("disrupted_route") if scenario else None
     disrupted_supplier = scenario.get("disrupted_supplier") if scenario else None
     sanctions_active = (scenario_id and "russia" in scenario_id)
+
+    # Determine attribute weights based on priority or custom weights
+    base_w = {"price": 0.30, "eta": 0.20, "risk": 0.20, "reliability": 0.15, "compatibility": 0.15}
+    if priority == "speed":
+        base_w = {"price": 0.15, "eta": 0.45, "risk": 0.15, "reliability": 0.15, "compatibility": 0.10}
+    elif priority == "cost":
+        base_w = {"price": 0.50, "eta": 0.10, "risk": 0.15, "reliability": 0.15, "compatibility": 0.10}
+    elif priority == "risk" or priority == "resilience":
+        base_w = {"price": 0.15, "eta": 0.15, "risk": 0.45, "reliability": 0.15, "compatibility": 0.10}
+
+    if weights:
+        total_w = sum(weights.values()) or 1.0
+        base_w = {k: round(weights.get(k, base_w.get(k, 0.2)) / total_w, 2) for k in base_w}
 
     scored_suppliers = []
     for s in suppliers:
@@ -78,6 +95,11 @@ def optimize_procurement(
             is_blocked = True
             sanctions_status = "DISRUPTED (Supply Halted)"
 
+        # Policy & Parameter Exclusions
+        if exclude_routes and route in exclude_routes:
+            is_blocked = True
+            sanctions_status = f"BLOCKED (Policy Excluded Route: {route})"
+
         # Dynamic adjustments
         route_risk = ROUTE_RISK_MAP.get(route, 25)
         if disrupted_route and route == disrupted_route:
@@ -89,6 +111,10 @@ def optimize_procurement(
             eta_adjusted = base_eta
             insurance_status = "STANDARD"
             insurance_penalty = 1.2
+
+        if max_risk_score is not None and route_risk > max_risk_score:
+            is_blocked = True
+            sanctions_status = f"BLOCKED (Exceeds Max Route Risk {max_risk_score})"
 
         landed_cost = round(base_price + insurance_penalty + (eta_adjusted * 0.25), 2)
         refinery_compat = CRUDE_COMPATIBILITY_MAP.get(crude_type, 85)
@@ -102,14 +128,15 @@ def optimize_procurement(
         compat_utility = float(refinery_compat)
 
         score_breakdown = {
-            "price_score": round(price_utility * 0.30, 1),
-            "eta_score": round(eta_utility * 0.20, 1),
-            "risk_score": round(risk_utility * 0.20, 1),
-            "reliability_score": round(reliability_utility * 0.15, 1),
-            "compatibility_score": round(compat_utility * 0.15, 1),
+            "price_score": round(price_utility * base_w["price"], 1),
+            "eta_score": round(eta_utility * base_w["eta"], 1),
+            "risk_score": round(risk_utility * base_w["risk"], 1),
+            "reliability_score": round(reliability_utility * base_w["reliability"], 1),
+            "compatibility_score": round(compat_utility * base_w["compatibility"], 1),
         }
 
         composite_score = round(sum(score_breakdown.values()), 1)
+
 
         if is_blocked:
             composite_score = 0.0

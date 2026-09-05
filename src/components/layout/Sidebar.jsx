@@ -73,7 +73,7 @@ export default function Sidebar({ crisisMode = false }) {
   const location = useLocation();
   const { currentUser } = useAuth();
   const { pipelineState } = useScenario();
-  const isAdmin = currentUser?.is_admin || currentUser?.email === 'arpitjham1@gmail.com' || currentUser?.role === 'System Administrator';
+  const isAdmin = Boolean(currentUser?.is_admin || currentUser?.email === 'arpitjham23@gmail.com' || currentUser?.role === 'System Administrator');
 
   const dynamicNavSections = isAdmin ? [
     {

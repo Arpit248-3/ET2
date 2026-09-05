@@ -62,6 +62,11 @@ def get_thresholds() -> Dict:
     return get_reference("thresholds")
 
 
+def get_policy_thresholds() -> Dict:
+    return get_reference("policy_thresholds")
+
+
+
 def invalidate_reference_cache():
     """Force reload of reference data (used after threshold updates)."""
     global _reference_cache

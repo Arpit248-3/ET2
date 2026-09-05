@@ -79,14 +79,14 @@ def seed():
                     status="ACTIVE", avatar="VS"
                 ),
                 DBUser(
-                    id="admin_arpit", name="Arpit Jha (Admin)",
-                    email="arpitjham1@gmail.com",
+                    id="admin_system", name="Sovereign System Administrator",
+                    email=os.getenv("ADMIN_EMAIL", "admin@urjanetra.gov.in"),
                     role="System Administrator",
                     phone="+91 98100 00000",
-                    designation="Platform Administrator & System Commander",
-                    department="UrjaNetra System Admin",
+                    designation="Platform Administrator & Sovereign Commander",
+                    department="UrjaNetra National Command",
                     clearance_level="LEVEL-5 COSMIC TOP SECRET",
-                    status="ACTIVE", avatar="AJ"
+                    status="ACTIVE", avatar="SA"
                 ),
             ]
             for u in users:
@@ -94,33 +94,43 @@ def seed():
             db.commit()
             print("[OK] Users seeded")
 
-        # Ensure Admin auth record exists
+        # Ensure Admin auth record exists and is synchronized with environment-configured password
+        import os
         from app.models import DBUserAuth
         from app.routers.auth import hash_password
-        admin_auth = db.query(DBUserAuth).filter(DBUserAuth.email == "arpitjham1@gmail.com").first()
-        if not admin_auth:
-            admin_user = db.query(DBUser).filter(DBUser.email == "arpitjham1@gmail.com").first()
-            if not admin_user:
-                admin_user = DBUser(
-                    id="admin_arpit", name="Arpit Jha (Admin)",
-                    email="arpitjham1@gmail.com",
-                    role="System Administrator",
-                    phone="+91 98100 00000",
-                    designation="Platform Administrator & System Commander",
-                    department="UrjaNetra System Admin",
-                    clearance_level="LEVEL-5 COSMIC TOP SECRET",
-                    status="ACTIVE", avatar="AJ"
-                )
-                db.add(admin_user)
-                db.commit()
-            new_auth = DBUserAuth(
-                user_id=admin_user.id,
-                email="arpitjham1@gmail.com",
-                hashed_password=hash_password("12345678")
+        admin_email = os.getenv("ADMIN_EMAIL", "admin@urjanetra.gov.in").lower().strip()
+        admin_password = os.getenv("ADMIN_PASSWORD", "")
+
+        admin_user = db.query(DBUser).filter(DBUser.email == admin_email).first()
+        if not admin_user:
+            admin_user = DBUser(
+                id="admin_system", name="Sovereign System Administrator",
+                email=admin_email,
+                role="System Administrator",
+                phone="+91 98100 00000",
+                designation="Platform Administrator & Sovereign Commander",
+                department="UrjaNetra National Command",
+                clearance_level="LEVEL-5 COSMIC TOP SECRET",
+                status="ACTIVE", avatar="SA"
             )
-            db.add(new_auth)
+            db.add(admin_user)
             db.commit()
-            print("[OK] Admin password for arpitjham1@gmail.com set to 12345678")
+            db.refresh(admin_user)
+
+        if admin_password:
+            admin_auth = db.query(DBUserAuth).filter(DBUserAuth.email == admin_email).first()
+            if admin_auth:
+                admin_auth.hashed_password = hash_password(admin_password)
+                db.commit()
+            else:
+                new_auth = DBUserAuth(
+                    user_id=admin_user.id,
+                    email=admin_email,
+                    hashed_password=hash_password(admin_password)
+                )
+                db.add(new_auth)
+                db.commit()
+            print(f"[OK] Admin account synchronized for {admin_email}")
 
         # Seed initial reports
         if db.query(DBReport).count() == 0:

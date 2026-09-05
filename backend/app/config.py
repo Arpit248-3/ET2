@@ -15,5 +15,16 @@ class Settings(BaseModel):
     MAIL_STARTTLS: bool = os.getenv("MAIL_STARTTLS", "True").lower() in ("true", "1", "yes")
     MAIL_SSL_TLS: bool = os.getenv("MAIL_SSL_TLS", "False").lower() in ("true", "1", "yes")
     MAIL_FROM_NAME: str = os.getenv("MAIL_FROM_NAME", "UrjaNetra AI Support Command")
+    ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL", "admin@urjanetra.gov.in")
+    ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "")
+    MAX_AGENT_ITERATIONS: int = int(os.getenv("MAX_AGENT_ITERATIONS", "3"))
+    MAX_TOOL_CALLS_PER_RUN: int = int(os.getenv("MAX_TOOL_CALLS_PER_RUN", "20"))
+    AGENT_TIMEOUT_SECONDS: int = int(os.getenv("AGENT_TIMEOUT_SECONDS", "45"))
+    SAFE_MODE_FALLBACK: bool = os.getenv("SAFE_MODE_FALLBACK", "true").lower() in ("true", "1", "yes")
+    OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
+    OPENROUTER_BASE_URL: str = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+    OPENROUTER_MODEL: str = os.getenv("OPENROUTER_MODEL_COPILOT", os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct"))
+    OPENROUTER_TIMEOUT: int = int(os.getenv("OPENROUTER_TIMEOUT", "20"))
 
 settings = Settings()
+

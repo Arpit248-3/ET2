@@ -1,0 +1,57 @@
+{
+  "_metadata": {
+    "source_type": "Sovereign Energy Policy Mandate",
+    "version": "2.4.0",
+    "last_updated": "2026-08-15",
+    "unit": "various",
+    "synthetic_status": "Scenario-driven sovereign policy parameters for reproducible demonstration",
+    "description": "Defines sovereign policy boundaries, statutory reserve minimums, compliance gates, and mandatory human approval triggers for Aegis AI decision platform."
+  },
+  "spr_policy": {
+    "statutory_minimum_reserve_pct": 20.0,
+    "warning_reserve_pct": 50.0,
+    "max_autonomous_drawdown_mbbl": 5.0,
+    "max_drawdown_limit_pct_total": 50.0,
+    "requires_cabinet_approval_above_mbbl": 5.0,
+    "description": "Strategic Petroleum Reserve safety margins. 20% is the critical cavern floor; drawdowns exceeding 5.0M bbl or dipping below 50% trigger mandatory Human-in-the-Loop cabinet approval."
+  },
+  "procurement_policy": {
+    "max_single_supplier_share_pct": 45.0,
+    "max_acceptable_route_risk": 70,
+    "landed_cost_escalation_ceiling_usd_bbl": 115.0,
+    "min_refinery_compatibility_score": 75,
+    "min_supplier_reliability_score": 70,
+    "banned_entities": [
+      "OFAC_SDN_LIST",
+      "UN_SANCTIONS_LIST",
+      "EU_RESTRICTED_ENTITIES"
+    ],
+    "g7_crude_price_cap_usd": 60.0,
+    "description": "Statutory rules governing crude procurement tenders, supplier diversification, and sanctions compliance."
+  },
+  "risk_policy": {
+    "critical_crisis_threshold": 80,
+    "high_risk_threshold": 60,
+    "moderate_risk_threshold": 40,
+    "max_acceptable_unmitigated_delay_days": 14,
+    "description": "National energy security risk index thresholds triggering sovereign emergency powers."
+  },
+  "economic_policy": {
+    "max_daily_import_bill_surge_cr": 25000,
+    "cpi_inflation_alert_pct": 1.5,
+    "description": "Macroeconomic tolerance thresholds for sovereign crude price pass-through and fiscal deficit alert triggers."
+  },
+  "governance_and_approval": {
+    "mandatory_human_approval_actions": [
+      "SPR_RELEASE",
+      "ROUTE_DIVERSION_WAR_RISK",
+      "SANCTIONS_EXCEPTION_REQUEST",
+      "CONTRACT_AWARD_OVER_1B_USD",
+      "EMERGENCY_REFINERY_DERATING"
+    ],
+    "max_autonomous_iterations": 3,
+    "approval_quorum_min": 1,
+    "required_clearance_for_approval": "LEVEL-5 COSMIC TOP SECRET",
+    "description": "Defines bounded autonomy controls. Consequential actions affecting physical reserves or sovereign trade cannot execute autonomously."
+  }
+}

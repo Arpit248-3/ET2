@@ -504,3 +504,44 @@ export const uploadScenario = async (payload = {}) => {
   });
 };
 
+// ─── Aegis Autonomous Agent Orchestration ─────────────────────────────────
+export const runAgentMission = (payload) =>
+  apiFetch('/agent/run', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+
+export const fetchAgentRuns = () => apiFetch('/agent/runs');
+
+export const fetchAgentRun = (runId) => apiFetch(`/agent/runs/${runId}`);
+
+export const approveAgentRun = (runId, userEmail = 'arpitjham23@gmail.com') =>
+  apiFetch(`/agent/runs/${runId}/approve`, {
+    method: 'POST',
+    headers: {
+      'X-User-Email': userEmail,
+    },
+  });
+
+export const rejectAgentRun = (runId, notes = '', userEmail = 'arpitjham23@gmail.com') =>
+  apiFetch(`/agent/runs/${runId}/reject`, {
+    method: 'POST',
+    headers: {
+      'X-User-Email': userEmail,
+    },
+    body: JSON.stringify({ notes }),
+  });
+
+export const replanAgentRun = (runId, feedback) =>
+  apiFetch(`/agent/runs/${runId}/replan`, {
+    method: 'POST',
+    body: JSON.stringify({ feedback }),
+  });
+
+export const fetchAgentTools = () => apiFetch('/agent/tools');
+
+export const fetchAgentStatus = () => apiFetch('/agent/status');
+
+export const verifyAgentAudit = () => apiFetch('/agent/audit/verify');
+
+
