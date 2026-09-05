@@ -323,7 +323,7 @@ API Documentation will be live at: [http://127.0.0.1:8000/docs](http://127.0.0.1
 npm install
 npm run dev
 ```
-Command Center UI will be live at: [http://localhost:5173/overview](http://localhost:5173/overview)
+Command Center UI will be live at: [http://localhost:5173/command-center](http://localhost:5173/command-center)
 
 ---
 
@@ -407,7 +407,7 @@ tests/test_verification_audit.py (8 tests)                                   PAS
 To reproduce the complete agentic response lifecycle during technical review:
 
 ### Demo Flow 1: Primary Crisis Response (Strait of Hormuz Disruption)
-1. Open the **Command Center** at `http://localhost:5173/overview`.
+1. Open the **Command Center** at `http://localhost:5173/command-center`.
 2. Locate the top **Aegis Autonomous Operations Panel**.
 3. Select the preset: **Primary Demo (Hormuz + SPR + Compliance)**:
    > *"Stabilize Indian refinery supply while minimizing SPR depletion and avoiding suppliers with compliance concerns."*
@@ -450,7 +450,7 @@ To reproduce the complete agentic response lifecycle during technical review:
 Verify all assertions directly from terminal:
 
 ```bash
-# 1. Run full backend test suite (79 tests)
+# 1. Run full backend test suite (80 tests)
 cd backend
 python -m pytest
 
